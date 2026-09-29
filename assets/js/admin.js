@@ -66,7 +66,7 @@
     var body = Object.assign({ action: action, token: state.token }, payload || {});
 
     /* Có mạng chặn script.google.com, hoặc tiện ích chặn request -> fetch treo
-       vô hạn. Đặt hạn 25 giây để báo lỗi rõ ràng thay vì xoay mãi. */
+       vô hạn. Đặt hạn 15 giây để báo lỗi rõ ràng thay vì xoay mãi. */
     var ctrl = null, timer = null;
     try { ctrl = new AbortController(); } catch (e) {}
     var opts = {
@@ -79,7 +79,7 @@
     };
     if (ctrl) {
       opts.signal = ctrl.signal;
-      timer = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 25000);
+      timer = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 15000);
     }
     var done = function () { if (timer) clearTimeout(timer); };
 
@@ -91,7 +91,7 @@
       done();
       var msg = String((err && err.message) || err);
       if (err && err.name === "AbortError") {
-        throw new Error("Gọi Apps Script quá 25 giây không phản hồi. Thường do mạng hoặc tiện ích " +
+        throw new Error("Gọi Apps Script quá 15 giây không phản hồi. Thường do mạng hoặc tiện ích " +
                         "trình duyệt chặn script.google.com — thử cửa sổ ẩn danh, hoặc đổi mạng (4G).");
       }
       throw new Error("Không kết nối được Apps Script (" + msg + "). Kiểm tra mạng, tiện ích chặn " +
