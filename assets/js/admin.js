@@ -64,16 +64,38 @@
   function api(action, payload) {
     if (!state.url) return Promise.reject(new Error("Chưa có link Apps Script."));
     var body = Object.assign({ action: action, token: state.token }, payload || {});
-    return fetch(state.url, {
+
+    /* Có mạng chặn script.google.com, hoặc tiện ích chặn request -> fetch treo
+       vô hạn. Đặt hạn 25 giây để báo lỗi rõ ràng thay vì xoay mãi. */
+    var ctrl = null, timer = null;
+    try { ctrl = new AbortController(); } catch (e) {}
+    var opts = {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
       credentials: "omit",
       referrerPolicy: "no-referrer",
       redirect: "follow",
       body: JSON.stringify(body)
-    }).then(function (r) {
+    };
+    if (ctrl) {
+      opts.signal = ctrl.signal;
+      timer = setTimeout(function () { try { ctrl.abort(); } catch (e) {} }, 25000);
+    }
+    var done = function () { if (timer) clearTimeout(timer); };
+
+    return fetch(state.url, opts).then(function (r) {
+      done();
       if (!r.ok) throw new Error("Apps Script trả về HTTP " + r.status);
       return r.text();
+    }, function (err) {
+      done();
+      var msg = String((err && err.message) || err);
+      if (err && err.name === "AbortError") {
+        throw new Error("Gọi Apps Script quá 25 giây không phản hồi. Thường do mạng hoặc tiện ích " +
+                        "trình duyệt chặn script.google.com — thử cửa sổ ẩn danh, hoặc đổi mạng (4G).");
+      }
+      throw new Error("Không kết nối được Apps Script (" + msg + "). Kiểm tra mạng, tiện ích chặn " +
+                      "quảng cáo, và Deploy phải đặt Who has access = Anyone.");
     }).then(function (txt) {
       var j;
       try { j = JSON.parse(txt); }
