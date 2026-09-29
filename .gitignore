@@ -1,0 +1,22 @@
+# Rác của hệ điều hành
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+._*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# Log / tạm
+*.log
+__*
+tmp/
+.cache/
+
+# Nếu sau này có dùng npm
+node_modules/

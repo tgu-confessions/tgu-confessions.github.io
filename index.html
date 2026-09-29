@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="index, follow">
+<title>TGU Confessions — Sân chơi ẩn danh của sinh viên Đại học Tiền Giang</title>
+<meta name="description" content="Nơi sinh viên Đại học Tiền Giang tâm sự, xin info cờ-rút, góp ý thầy cô... hoàn toàn ẩn danh. Không đăng nhập, không cookie theo dõi, chỉ có số thứ tự.">
+<meta name="theme-color" content="#0b0a14" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f7f5ff" media="(prefers-color-scheme: light)">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="TGU Confessions — Sân chơi ẩn danh của sinh viên ĐH Tiền Giang">
+<meta property="og:description" content="Tâm sự tuổi hường, xin info cờ-rút, góp ý thầy cô — ẩn danh 100%, chỉ có số thứ tự.">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%8C%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/css/style.css">
+
+<script>
+  /* Áp theme trước khi render để không bị nháy màu (FOUC)
+     + bật class "js" để animation reveal chỉ hoạt động khi có JavaScript. */
+  (function () {
+    document.documentElement.classList.add("js");
+    try {
+      var saved = localStorage.getItem("cfs-theme");
+      var sysLight = window.matchMedia("(prefers-color-scheme: light)").matches;
+      document.documentElement.setAttribute("data-theme", saved || (sysLight ? "light" : "dark"));
+    } catch (e) {}
+  })();
+</script>
+</head>
+
+<body>
+<a class="skip-link" href="#main">Bỏ qua, tới nội dung chính</a>
+
+<!-- ===== Nền động ===== -->
+<div class="bg-decor" aria-hidden="true">
+  <span class="blob blob-1"></span>
+  <span class="blob blob-2"></span>
+  <span class="blob blob-3"></span>
+  <div class="grid-overlay"></div>
+  <div class="floaties" id="floaties"></div>
+</div>
+
+<!-- ===== Header ===== -->
+<header class="site-header" id="siteHeader">
+  <div class="container header-inner">
+    <a class="brand" href="#top" aria-label="Trang chủ TGU Confessions">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </span>
+      <span class="brand-text">
+        <strong data-cfs="site.shortName">TGU CFS</strong>
+        <small>Confessions</small>
+      </span>
+    </a>
+
+    <nav class="site-nav" id="siteNav" aria-label="Điều hướng chính">
+      <a href="#gioi-thieu">Giới thiệu</a>
+      <a href="#noi-quy">Nội quy</a>
+      <a href="#gui-cfs">Gửi cfs</a>
+      <a href="#feed">Bảng tin</a>
+      <a href="#an-danh">Ẩn danh?</a>
+    </nav>
+
+    <div class="header-actions">
+      <button class="icon-btn theme-toggle" id="themeToggle" type="button"
+              aria-label="Chuyển chế độ sáng/tối" title="Chuyển chế độ sáng / tối">
+        <svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+          <circle cx="12" cy="12" r="4.2"/>
+          <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/>
+        </svg>
+        <svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20.5 14.3A8.8 8.8 0 1 1 9.7 3.5a7 7 0 0 0 10.8 10.8z"/>
+        </svg>
+      </button>
+
+      <a class="btn btn-primary btn-sm hide-sm" href="#gui-cfs">
+        Gửi confession
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M5 12h13M12 5l7 7-7 7"/>
+        </svg>
+      </a>
+
+      <button class="icon-btn nav-toggle" id="navToggle" type="button"
+              aria-label="Mở menu" aria-expanded="false" aria-controls="siteNav">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+  <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+</header>
+
+<main id="main">
+<span id="top"></span>
+
+<!-- ===== HERO ===== -->
+<section class="hero">
+  <div class="container hero-inner">
+    <p class="pill reveal">
+      <span class="dot"></span>
+      Ẩn danh 100% · Không đăng nhập · Không cookie theo dõi
+    </p>
+
+    <h1 class="hero-title reveal" data-reveal-delay="60">
+      Nói ra điều bạn <em>không dám</em> nói,
+      <span class="grad">ẩn danh tuyệt đối</span>
+    </h1>
+
+    <p class="hero-sub reveal" data-reveal-delay="120">
+      Trang confession của <strong data-cfs="site.school">Đại học Tiền Giang</strong> — sân chơi của sinh viên,
+      <b>hoạt động không thuộc sự quản lí của nhà trường</b>.
+    </p>
+
+    <p class="hero-type reveal" data-reveal-delay="180" aria-live="polite">
+      <span class="type-prefix">Ở đây bạn có thể</span>
+      <span class="typewriter" id="typewriter"></span><span class="caret" aria-hidden="true"></span>
+    </p>
+
+    <div class="hero-cta reveal" data-reveal-delay="240">
+      <a class="btn btn-primary btn-lg" href="#gui-cfs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3.5 11.5 20.5 4l-7 16.5-2.6-6.4z"/><path d="M10.9 14.1 20.5 4"/>
+        </svg>
+        Gửi confession
+      </a>
+      <a class="btn btn-ghost btn-lg" href="#feed">
+        Đọc bảng tin
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M5 12h13M12 5l7 7-7 7"/>
+        </svg>
+      </a>
+    </div>
+
+    <ul class="hero-stats reveal" data-reveal-delay="300">
+      <li><strong class="count" data-count-to="0" id="statTotal">0</strong><span>confession đã đăng</span></li>
+      <li><strong>0</strong><span>thông tin cá nhân được lưu</span></li>
+      <li><strong>#1</strong><span>bạn chỉ là một con số</span></li>
+    </ul>
+  </div>
+
+  <a class="scroll-hint" href="#gioi-thieu" aria-label="Cuộn xuống">
+    <span class="mouse"><span></span></span>
+  </a>
+</section>
+
+<!-- ===== GIỚI THIỆU ===== -->
+<section class="section" id="gioi-thieu">
+  <div class="container">
+    <header class="section-head reveal">
+      <span class="eyebrow">Giới thiệu</span>
+      <h2>Đây là nơi <span class="grad">không ai biết bạn là ai</span></h2>
+    </header>
+
+    <div class="intro-grid">
+      <article class="card card-lg intro-text reveal" data-reveal-delay="80">
+        <p>
+          Trang confession của trường <strong>Đại học Tiền Giang</strong> — sân chơi ẩn danh của sinh viên —
+          <strong>hoạt động không thuộc sự quản lí của nhà trường</strong>. Đây là nơi để các bạn tâm sự tuổi hường,
+          vui chơi giải trí dưới dạng ẩn danh, tức là không ai biết bạn là ai cả <span class="emo">:&gt;&gt;</span>
+        </p>
+        <p>
+          Trên này các bạn có thể xin infor của <em>cờ-rút</em> mà không phải ngại, có thể kể dăm ba cái chuyện mà
+          bình thường không dám kể trước mặt thiên hạ, góp ý cho thầy cô những lời vốn ngại nói ra hay sợ nói ra
+          sẽ bị... đì <span class="emo">:)))</span>
+        </p>
+        <p class="intro-highlight">
+          Tất cả những chuyện trên qua cfs thì <strong>chỉ có số thứ tự</strong> thôi chứ không ai biết bạn là ai đâu,
+          nên thoải mái nhé <span class="emo">:&gt;&gt;</span>
+        </p>
+      </article>
+
+      <div class="intro-cards">
+        <article class="card feature reveal" data-reveal-delay="140">
+          <span class="feature-ico" aria-hidden="true">💌</span>
+          <h3>Xin info cờ-rút</h3>
+          <p>Thích ai thì nói, khỏi cần lấy hết can đảm rồi lại thôi.</p>
+        </article>
+        <article class="card feature reveal" data-reveal-delay="200">
+          <span class="feature-ico" aria-hidden="true">🌧️</span>
+          <h3>Tâm sự tuổi hường</h3>
+          <p>Chuyện buồn, chuyện dở khóc dở cười — kể hết, có người nghe.</p>
+        </article>
+        <article class="card feature reveal" data-reveal-delay="260">
+          <span class="feature-ico" aria-hidden="true">🎓</span>
+          <h3>Góp ý thầy cô</h3>
+          <p>Nói điều ngại nói, nhưng nhớ giữ lời cho tử tế nhé.</p>
+        </article>
+        <article class="card feature reveal" data-reveal-delay="320">
+          <span class="feature-ico" aria-hidden="true">🎭</span>
+          <h3>Chỉ là một con số</h3>
+          <p>Cfs lên sóng với số thứ tự. Không tên, không lớp, không khoa.</p>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== NỘI QUY ===== -->
+<section class="section section-alt" id="noi-quy">
+  <div class="container">
+    <header class="section-head reveal">
+      <span class="eyebrow">Nội quy</span>
+      <h2>Sân chơi nào cũng có <span class="grad">luật</span></h2>
+      <p>Vui lòng đọc kĩ trước khi gửi cfs nhé 🌷</p>
+    </header>
+
+    <article class="card rule-zero reveal">
+      <span class="rz-badge">Điều tiên quyết</span>
+      <h3>Tôn trọng quyền riêng tư — đừng để lộ mặt người trong hình</h3>
+      <p>
+        Trước cả 6 điều dưới đây: <strong>không được vi phạm quyền riêng tư của bất kỳ ai.</strong>
+        Không đăng ảnh, tên thật, MSSV, số điện thoại, link mạng xã hội hay chỗ ở của người khác khi họ
+        chưa đồng ý. Ảnh chụp người đi ngang, bạn cùng lớp, thầy cô — đều tính.
+      </p>
+      <p>
+        Nếu bạn gửi ảnh có mặt người — ví dụ xin info cờ-rút —
+        <strong>chúng mình khuyên bạn dán nhãn che mặt lại trước khi đăng</strong>.
+        Trang có sẵn trình che mặt ngay trong khung gửi cfs: chọn ảnh → bấm
+        <em>Che mặt</em> → quét ngón tay/chuột lên vùng mặt là xong. Nhãn được nung thẳng vào ảnh,
+        không ai bóc ra được.
+      </p>
+      <p class="rz-note">
+        Một tấm ảnh vô tình có thể khiến người trong hình bị bàn tán, bị trêu, bị quấy rầy — dù bạn
+        không hề có ý đó. Che mặt là phép lịch sự tối thiểu. Ban quản trị sẽ không duyệt ảnh
+        gây tổn hại cho người trong hình.
+      </p>
+    </article>
+
+    <ol class="rules">
+      <li class="card rule reveal" data-reveal-delay="60">
+        <span class="rule-no">01</span>
+        <p>Không sử dụng từ ngữ <strong>nặng nề, thô tục</strong>.</p>
+      </li>
+      <li class="card rule reveal" data-reveal-delay="110">
+        <span class="rule-no">02</span>
+        <p>Một cfs <strong>không được gửi quá 3 lần</strong>.</p>
+      </li>
+      <li class="card rule reveal" data-reveal-delay="160">
+        <span class="rule-no">03</span>
+        <p>Trừ khi có việc gấp, không thì <strong>đừng inbox cho page</strong> để gửi cfs mà hãy gửi qua link.</p>
+      </li>
+      <li class="card rule rule-warn reveal" data-reveal-delay="210">
+        <span class="rule-no">04</span>
+        <p>
+          Nếu là cfs nói về thầy cô, trong trường hợp không thể dùng thái độ hoà nhã, thì phải cẩn trọng ngôn từ.
+          Chuyện quan trọng nhắc lại nhiều lần.
+          <strong class="shout">CẨN TRỌNG NGÔN TỪ KHI NÓI VỀ THẦY CÔ.</strong>
+        </p>
+      </li>
+      <li class="card rule reveal" data-reveal-delay="260">
+        <span class="rule-no">05</span>
+        <p>Không <strong>bôi xấu, tung tin đồn thất thiệt</strong> về người khác.</p>
+      </li>
+      <li class="card rule reveal" data-reveal-delay="310">
+        <span class="rule-no">06</span>
+        <p>Làm gì thì làm, phải biết <strong>giữ gìn hình ảnh của trường</strong> nhé <span class="emo">:&gt;&gt;&gt;</span></p>
+      </li>
+    </ol>
+
+    <p class="rules-thanks reveal">Cám ơn bạn đã đọc nội quy, yêu thương 💜</p>
+  </div>
+</section>
+
+<!-- ===== GỬI CFS ===== -->
+<section class="section" id="gui-cfs">
+  <div class="container narrow">
+    <header class="section-head reveal">
+      <span class="eyebrow">Gửi confession</span>
+      <h2>Trút hết ra đây, <span class="grad">ẩn danh mà</span></h2>
+      <p>Không cần đăng nhập, không cần email, không cần tên. Gửi là xong.</p>
+    </header>
+
+    <form class="card card-lg cfs-form reveal" id="cfsForm" novalidate data-reveal-delay="80">
+      <div class="form-row">
+        <label class="label" for="cfsCategory">Chủ đề</label>
+        <div class="chips" id="categoryChips" role="radiogroup" aria-label="Chọn chủ đề"></div>
+        <select id="cfsCategory" name="category" class="sr-only" tabindex="-1" aria-hidden="true"></select>
+      </div>
+
+      <div class="form-row">
+        <div class="label-line">
+          <label class="label" for="cfsContent">Nội dung confession</label>
+          <span class="counter" id="charCounter">0</span>
+        </div>
+        <textarea id="cfsContent" name="content" class="input textarea" rows="9"
+                  placeholder="Kể đi... ở đây chỉ có số thứ tự thôi, không ai biết bạn là ai đâu :>>"
+                  maxlength="3000" required aria-describedby="contentHelp"></textarea>
+        <p class="help" id="contentHelp">
+          Mẹo: đừng ghi tên thật, MSSV, số điện thoại hay bất cứ thứ gì có thể lần ra bạn — kể cả của người khác.
+        </p>
+        <p class="field-error" id="contentError" role="alert" hidden></p>
+      </div>
+
+      <div class="form-row" id="imageRow">
+        <div class="label-line">
+          <label class="label" for="cfsImages">Hình ảnh <span class="label-opt">(không bắt buộc)</span></label>
+          <span class="counter" id="imgCounter">0 / 3</span>
+        </div>
+
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="cfsImages" accept="image/*" multiple class="sr-only">
+          <label class="dz-inner" for="cfsImages">
+            <span class="dz-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="4.5" width="18" height="15" rx="2.5"/>
+                <circle cx="8.5" cy="10" r="1.6"/>
+                <path d="M3.5 17.5 9 12.5l3.5 3 3-2.5 4.8 4"/>
+              </svg>
+            </span>
+            <span class="dz-text">
+              <strong>Chọn ảnh</strong> hoặc kéo thả vào đây
+              <small>JPG · PNG · WEBP — tối đa 3 ảnh, mỗi ảnh 10MB</small>
+            </span>
+          </label>
+        </div>
+
+        <p class="img-privacy">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M12 3.2 20 6.4v5.3c0 4.6-3.2 8-8 9.1-4.8-1.1-8-4.5-8-9.1V6.4z"/><path d="M9.2 12.2l2 2 3.6-4"/>
+          </svg>
+          <span>
+            Ảnh được <strong>vẽ lại hoàn toàn trong máy bạn</strong> trước khi gửi, nên mọi metadata EXIF
+            (toạ độ GPS, model điện thoại, giờ chụp) bị xoá sạch.
+            Có mặt người trong hình? <strong>Nên bấm “Che mặt” để dán nhãn lại</strong> — vì người ta không
+            chọn được việc mình bị đăng lên.
+          </span>
+        </p>
+
+        <ul class="thumbs" id="thumbs"></ul>
+        <p class="field-error" id="imgError" role="alert" hidden></p>
+      </div>
+
+      <label class="check">
+        <input type="checkbox" id="cfsAgree" required>
+        <span class="box" aria-hidden="true"></span>
+        <span>Mình đã đọc <a href="#noi-quy">nội quy</a>, không bôi xấu ai, cẩn trọng ngôn từ khi nói về thầy cô,
+        và không xâm phạm quyền riêng tư của người khác.</span>
+      </label>
+
+      <!-- Bẫy bot: người thật không bao giờ thấy ô này -->
+      <div class="honeypot" aria-hidden="true">
+        <label for="cfsWebsite">Website</label>
+        <input type="text" id="cfsWebsite" name="website" tabindex="-1" autocomplete="off">
+      </div>
+
+      <div class="form-foot">
+        <button class="btn btn-primary btn-lg btn-block" type="submit" id="submitBtn">
+          <span class="btn-label">Gửi ẩn danh</span>
+          <span class="spinner" aria-hidden="true"></span>
+        </button>
+        <p class="form-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="4" y="10.5" width="16" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>
+          </svg>
+          Cfs được duyệt trước khi lên bảng tin. Không ai — kể cả ban quản trị — biết bạn là ai.
+        </p>
+      </div>
+    </form>
+  </div>
+</section>
+
+<!-- ===== FEED ===== -->
+<section class="section section-alt" id="feed">
+  <div class="container">
+    <header class="section-head reveal">
+      <span class="eyebrow">Bảng tin</span>
+      <h2>Những điều <span class="grad">đã được nói ra</span></h2>
+      <p>Mỗi confession là một con số. Không tên, không dấu vết.</p>
+    </header>
+
+    <div class="feed-tools reveal" data-reveal-delay="60">
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>
+        </svg>
+        <input type="search" id="feedSearch" class="input" placeholder="Tìm trong confession... (thử #12)" aria-label="Tìm confession">
+      </div>
+      <div class="chips chips-filter" id="feedFilters" role="tablist" aria-label="Lọc theo chủ đề"></div>
+    </div>
+
+    <div class="feed-grid" id="feedGrid" aria-live="polite" aria-busy="true"></div>
+
+    <p class="feed-empty" id="feedEmpty" hidden>
+      Chưa có confession nào ở đây. Bạn mở màn nhé? <a href="#gui-cfs">Gửi ngay →</a>
+    </p>
+
+    <div class="feed-foot">
+      <button class="btn btn-ghost" id="loadMore" type="button" hidden>Xem thêm confession</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== ẨN DANH ===== -->
+<section class="section" id="an-danh">
+  <div class="container">
+    <header class="section-head reveal">
+      <span class="eyebrow">Quyền riêng tư</span>
+      <h2>Vì sao ở đây <span class="grad">thật sự ẩn danh</span>?</h2>
+    </header>
+
+    <div class="privacy-grid">
+      <article class="card privacy reveal" data-reveal-delay="60">
+        <span class="p-ico" aria-hidden="true">🚫</span>
+        <h3>Không đăng nhập</h3>
+        <p>Không tài khoản, không email, không số điện thoại. Form chỉ có đúng nội dung cfs và chủ đề.</p>
+      </article>
+      <article class="card privacy reveal" data-reveal-delay="110">
+        <span class="p-ico" aria-hidden="true">🍪</span>
+        <h3>Không cookie theo dõi</h3>
+        <p>Không Google Analytics, không pixel quảng cáo, không font tải từ server thứ ba, không cookie.
+          Trang chỉ đếm <em>tổng</em> số lượt mở và số lần bấm lọc từng chủ đề — là một ô số cộng dồn,
+          không kèm IP, không id thiết bị, không có dòng nào ứng với riêng bạn.</p>
+      </article>
+      <article class="card privacy reveal" data-reveal-delay="160">
+        <span class="p-ico" aria-hidden="true">🔢</span>
+        <h3>Chỉ có số thứ tự</h3>
+        <p>Cfs lên sóng kèm một con số và ngày đăng. Không tên, không lớp, không khoa, không dấu vết nào dẫn về bạn.</p>
+      </article>
+      <article class="card privacy reveal" data-reveal-delay="210">
+        <span class="p-ico" aria-hidden="true">📂</span>
+        <h3>Mã nguồn mở</h3>
+        <p>Toàn bộ trang là file tĩnh trên GitHub Pages. Ai cũng kiểm tra được code, không có gì chạy ngầm.</p>
+      </article>
+      <article class="card privacy reveal" data-reveal-delay="260">
+        <span class="p-ico" aria-hidden="true">📷</span>
+        <h3>Ảnh bị xoá metadata</h3>
+        <p>Mỗi ảnh được vẽ lại qua canvas ngay trong máy bạn trước khi gửi, nên EXIF — toạ độ GPS, model điện thoại, giờ chụp — bị loại bỏ. Có sẵn trình che mặt để dán nhãn lên người trong hình.</p>
+      </article>
+    </div>
+
+    <aside class="notice reveal" data-reveal-delay="310">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.2"/><path d="M12 8.2v.2M12 11.4v4.6"/>
+        </svg>
+        Nói thật cho rõ ràng
+      </h3>
+      <p>
+        Trang này <strong>không thu</strong> bất kỳ thông tin nào về bạn. Nhưng trên Internet, mọi nhà cung cấp hạ tầng
+        (GitHub, nơi nhận dữ liệu form, nhà mạng của bạn) đều có log kỹ thuật của riêng họ — chúng mình không truy cập
+        và cũng không thể xem được, nhưng cũng không thể xoá hộ bạn.
+      </p>
+      <p>
+        Vậy nên: <strong>tự bảo vệ mình bằng nội dung bạn viết.</strong> Đừng ghi tên thật, MSSV, số điện thoại,
+        link Facebook hay chi tiết chỉ mình bạn mới có. Muốn kỹ hơn nữa thì dùng mạng 4G thay Wi-Fi trường,
+        hoặc trình duyệt Tor. Nội dung tự tố là cách bị lộ phổ biến nhất, chứ không phải kỹ thuật.
+      </p>
+      <p>
+        Về bộ đếm: trang có cộng dồn <strong>tổng lượt mở trang mỗi ngày</strong> và
+        <strong>số lần bấm lọc từng chủ đề</strong>, để ban quản trị biết mọi người quan tâm chuyện gì.
+        Dữ liệu gửi đi đúng hai thứ: loại sự kiện và id chủ đề — không IP, không cookie, không id thiết bị,
+        không đường dẫn. Kết quả nằm trong một ô số duy nhất, nên không thể tách ra ai đã ghé trang.
+      </p>
+    </aside>
+  </div>
+</section>
+
+</main>
+
+<!-- ===== FOOTER ===== -->
+<footer class="site-footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <strong data-cfs="site.name">TGU Confessions</strong>
+      <p data-cfs="site.tagline">Sân chơi ẩn danh của sinh viên</p>
+      <p class="footer-disclaimer">
+        Trang do sinh viên tự lập, <strong>không thuộc sự quản lí của Trường Đại học Tiền Giang</strong>.
+        Nội dung confession là quan điểm cá nhân của người gửi.
+      </p>
+    </div>
+
+    <nav class="footer-links" aria-label="Liên kết cuối trang">
+      <a href="#gioi-thieu">Giới thiệu</a>
+      <a href="#noi-quy">Nội quy</a>
+      <a href="#gui-cfs">Gửi cfs</a>
+      <a href="#feed">Bảng tin</a>
+      <a href="#an-danh">Quyền riêng tư</a>
+      <a href="#" id="fanpageLink" hidden>Fanpage</a>
+      <a href="admin.html" rel="nofollow">Quản trị</a>
+    </nav>
+  </div>
+  <div class="container footer-bottom">
+    <p>© <span id="year">2026</span> <span data-cfs="site.shortName">TGU CFS</span> · Made with 💜 by sinh viên, for sinh viên</p>
+    <button class="to-top" id="toTop" type="button" aria-label="Lên đầu trang">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 19V5M5 12l7-7 7 7"/>
+      </svg>
+    </button>
+  </div>
+</footer>
+
+<!-- ===== Modal cảm ơn ===== -->
+<div class="modal" id="thanksModal" role="dialog" aria-modal="true" aria-labelledby="thanksTitle" hidden>
+  <div class="modal-backdrop" data-close></div>
+  <div class="modal-card">
+    <div class="modal-check" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 13l4.5 4.5L19 7"/>
+      </svg>
+    </div>
+    <h3 id="thanksTitle">Đã gửi rồi nha!</h3>
+    <p>Confession của bạn đang chờ duyệt. Không có tên bạn ở đâu cả — chỉ một con số thôi <span class="emo">:&gt;&gt;</span></p>
+    <button class="btn btn-primary" type="button" data-close>Ừ, cảm ơn</button>
+  </div>
+</div>
+
+<!-- ===== Trình che mặt ===== -->
+<div class="modal editor-modal" id="imgEditor" role="dialog" aria-modal="true" aria-labelledby="edTitle" hidden>
+  <div class="modal-backdrop" data-eclose></div>
+  <div class="editor-card">
+    <header class="editor-head">
+      <div>
+        <h3 id="edTitle">Che mặt trước khi đăng</h3>
+        <p>Quét ngón tay (hoặc kéo chuột) lên vùng mặt để dán nhãn. Chạm vào nhãn đã dán để xoá.</p>
+      </div>
+      <button class="icon-btn" type="button" data-eclose aria-label="Đóng trình che mặt">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+          <path d="M6 6l12 12M18 6 6 18"/>
+        </svg>
+      </button>
+    </header>
+
+    <div class="editor-stage" id="editorStage">
+      <canvas id="editorCanvas" aria-label="Ảnh đang được che mặt"></canvas>
+    </div>
+
+    <div class="editor-tools">
+      <div class="chips" id="editorTools" aria-label="Kiểu che">
+        <button type="button" class="chip is-active" data-tool="emoji" aria-pressed="true"><span aria-hidden="true">🙈</span> Nhãn dán</button>
+        <button type="button" class="chip" data-tool="block" aria-pressed="false"><span aria-hidden="true">⬛</span> Che đen</button>
+        <button type="button" class="chip" data-tool="mosaic" aria-pressed="false"><span aria-hidden="true">🌫️</span> Làm nhoè</button>
+        <button type="button" class="chip" id="edAuto" hidden>Tự tìm mặt</button>
+      </div>
+
+      <div class="chips glyphs" id="editorGlyphs" aria-label="Chọn nhãn dán">
+        <button type="button" class="chip glyph is-active" data-glyph="😶‍🌫️">😶‍🌫️</button>
+        <button type="button" class="chip glyph" data-glyph="🙈">🙈</button>
+        <button type="button" class="chip glyph" data-glyph="😎">😎</button>
+        <button type="button" class="chip glyph" data-glyph="🐱">🐱</button>
+        <button type="button" class="chip glyph" data-glyph="🌸">🌸</button>
+        <button type="button" class="chip glyph" data-glyph="⭐">⭐</button>
+        <button type="button" class="chip glyph" data-glyph="💜">💜</button>
+        <button type="button" class="chip glyph" data-glyph="🫥">🫥</button>
+      </div>
+
+      <div class="editor-actions">
+        <span class="editor-count" id="editorCount">Chưa có nhãn che nào</span>
+        <button class="btn btn-ghost btn-sm" type="button" id="edUndo">Hoàn tác</button>
+        <button class="btn btn-ghost btn-sm" type="button" id="edClear">Xoá hết</button>
+        <button class="btn btn-primary btn-sm" type="button" id="edDone">Xong</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Lightbox xem ảnh ===== -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Xem ảnh confession" hidden>
+  <div class="modal-backdrop" data-lbclose></div>
+  <button class="lb-close icon-btn" type="button" data-lbclose aria-label="Đóng ảnh">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <path d="M6 6l12 12M18 6 6 18"/>
+    </svg>
+  </button>
+  <img id="lightboxImg" alt="Ảnh kèm theo confession">
+</div>
+
+<!-- ===== Toast ===== -->
+<div class="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="true"></div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/backend.js"></script>
+<script src="assets/js/imagekit.js"></script>
+<script src="assets/js/app.js"></script>
+</body>
+</html>

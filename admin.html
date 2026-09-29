@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<title>Quản trị — TGU Confessions</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9B%A0%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/css/style.css">
+<link rel="stylesheet" href="assets/css/admin.css">
+<script>
+  (function () {
+    document.documentElement.classList.add("js");
+    try {
+      var s = localStorage.getItem("cfs-theme");
+      var light = window.matchMedia("(prefers-color-scheme: light)").matches;
+      document.documentElement.setAttribute("data-theme", s || (light ? "light" : "dark"));
+    } catch (e) {}
+  })();
+</script>
+</head>
+
+<body class="admin-body">
+<div class="bg-decor" aria-hidden="true">
+  <span class="blob blob-1"></span><span class="blob blob-2"></span>
+  <div class="grid-overlay"></div>
+</div>
+
+<!-- ===================== ĐĂNG NHẬP ===================== -->
+<section class="gate" id="gate">
+  <form class="card card-lg gate-card" id="gateForm" novalidate>
+    <span class="brand-mark gate-mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3.2 20 6.4v5.3c0 4.6-3.2 8-8 9.1-4.8-1.1-8-4.5-8-9.1V6.4z"/><path d="M9.2 12.2l2 2 3.6-4"/>
+      </svg>
+    </span>
+    <h1>Trang quản trị</h1>
+    <p class="gate-sub">Duyệt confession, quản lí ảnh trong Drive và xem thống kê.</p>
+
+    <div class="form-row">
+      <label class="label" for="gUrl">Link Apps Script (Web app URL)</label>
+      <input class="input" id="gUrl" type="url" inputmode="url" autocomplete="off" spellcheck="false"
+             placeholder="https://script.google.com/macros/s/.../exec">
+      <p class="help">Lấy ở Apps Script → Deploy → Web app. Link này được ghi nhớ trên máy bạn.</p>
+    </div>
+
+    <div class="form-row">
+      <label class="label" for="gUser">Tên đăng nhập</label>
+      <input class="input" id="gUser" type="text" autocomplete="username" spellcheck="false"
+             placeholder="admin@..." required>
+    </div>
+
+    <div class="form-row">
+      <label class="label" for="gPass">Mật khẩu</label>
+      <div class="pw">
+        <input class="input" id="gPass" type="password" autocomplete="current-password" required
+               placeholder="Mật khẩu quản trị">
+        <button class="pw-eye" type="button" id="gEye" aria-label="Hiện mật khẩu">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
+      <p class="help">Mật khẩu được kiểm tra bên trong Apps Script (dạng hash), không lưu trong trình duyệt.
+        Chỉ phiên đăng nhập được giữ trong tab này và mất khi bạn đóng tab.</p>
+    </div>
+
+    <p class="field-error" id="gateError" role="alert" hidden></p>
+
+    <button class="btn btn-primary btn-lg btn-block" type="submit" id="gateBtn">
+      <span class="btn-label">Vào trang quản trị</span><span class="spinner" aria-hidden="true"></span>
+    </button>
+
+    <p class="gate-back"><a href="./">← Về trang confession</a></p>
+  </form>
+</section>
+
+<!-- ===================== BẢNG ĐIỀU KHIỂN ===================== -->
+<div class="admin" id="admin" hidden>
+  <header class="admin-head">
+    <div class="container admin-head-inner">
+      <a class="brand" href="./" title="Về trang confession">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+        </span>
+        <span class="brand-text"><strong>Quản trị</strong><small id="adSheet">TGU CFS</small></span>
+      </a>
+
+      <nav class="tabs" id="tabs" role="tablist" aria-label="Khu vực quản trị">
+        <button class="tab is-active" type="button" role="tab" data-tab="pending" aria-selected="true">
+          Chờ duyệt <span class="badge" id="cntPending">0</span>
+        </button>
+        <button class="tab" type="button" role="tab" data-tab="approved" aria-selected="false">
+          Đã đăng <span class="badge" id="cntApproved">0</span>
+        </button>
+        <button class="tab" type="button" role="tab" data-tab="stats" aria-selected="false">Thống kê</button>
+        <button class="tab" type="button" role="tab" data-tab="settings" aria-selected="false">Cài đặt</button>
+      </nav>
+
+      <div class="admin-actions">
+        <button class="icon-btn" type="button" id="adRefresh" aria-label="Tải lại dữ liệu" title="Tải lại">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1"/><path d="M20.5 4v4.5H16"/>
+          </svg>
+        </button>
+        <button class="icon-btn theme-toggle" id="themeToggle" type="button" aria-label="Chuyển chế độ sáng/tối">
+          <svg class="ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round">
+            <circle cx="12" cy="12" r="4.2"/>
+            <path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.2 5.2l1.6 1.6M17.2 17.2l1.6 1.6M18.8 5.2l-1.6 1.6M6.8 17.2l-1.6 1.6"/>
+          </svg>
+          <svg class="ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.5 14.3A8.8 8.8 0 1 1 9.7 3.5a7 7 0 0 0 10.8 10.8z"/>
+          </svg>
+        </button>
+        <button class="btn btn-ghost btn-sm" type="button" id="adLogout">Đăng xuất</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container admin-main">
+    <div class="warnbar" id="pwWarn" hidden>
+      <strong>Đang dùng mật khẩu mặc định.</strong>
+      Mật khẩu mặc định nằm trong <code>apps-script/Code.gs</code> — ai xem repo cũng đọc được.
+      <button class="btn btn-primary btn-sm" type="button" id="goChangePw">Đổi mật khẩu ngay</button>
+    </div>
+    <!-- ===== Chờ duyệt ===== -->
+    <section class="panel is-active" id="panel-pending" role="tabpanel">
+      <div class="panel-head">
+        <div>
+          <h2>Confession chờ duyệt</h2>
+          <p class="panel-sub">Đọc kĩ theo 6 điều nội quy và điều tiên quyết về quyền riêng tư.
+            Ảnh có mặt người mà chưa che thì nên bỏ ảnh hoặc từ chối.</p>
+        </div>
+        <span class="next-no">Số tiếp theo: <strong id="nextNo">#1</strong></span>
+      </div>
+      <div class="list" id="listPending"></div>
+      <p class="empty" id="emptyPending" hidden>Không còn cfs nào chờ duyệt. Sạch sẽ 🎉</p>
+    </section>
+
+    <!-- ===== Đã đăng ===== -->
+    <section class="panel" id="panel-approved" role="tabpanel" hidden>
+      <div class="panel-head">
+        <div>
+          <h2>Đã đăng</h2>
+          <p class="panel-sub">Sửa nội dung, đổi số, hạ xuống chờ duyệt lại hoặc xoá hẳn (xoá cả ảnh trong Drive).</p>
+        </div>
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>
+          </svg>
+          <input class="input" id="adSearch" type="search" placeholder="Tìm nội dung hoặc #số" aria-label="Tìm trong cfs đã đăng">
+        </div>
+      </div>
+      <div class="list" id="listApproved"></div>
+      <p class="empty" id="emptyApproved" hidden>Chưa có cfs nào được đăng.</p>
+    </section>
+
+    <!-- ===== Thống kê ===== -->
+    <section class="panel" id="panel-stats" role="tabpanel" hidden>
+      <div class="panel-head">
+        <div>
+          <h2>Thống kê</h2>
+          <p class="panel-sub">Chỉ là những con số cộng dồn — không có IP, không cookie, không dòng nào
+            ứng với một người ghé trang cụ thể.</p>
+        </div>
+        <label class="range">
+          Khoảng
+          <select class="input" id="statDays">
+            <option value="7">7 ngày</option>
+            <option value="14" selected>14 ngày</option>
+            <option value="30">30 ngày</option>
+            <option value="90">90 ngày</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="kpis" id="kpis"></div>
+
+      <div class="card chart-card">
+        <h3>Lượt ghé trang theo ngày</h3>
+        <div class="chart" id="chartVisits"></div>
+      </div>
+
+      <div class="chart-grid">
+        <div class="card chart-card">
+          <h3>Chủ đề người xem quan tâm</h3>
+          <p class="chart-sub">Đếm số lần bấm lọc theo từng chủ đề trên bảng tin.</p>
+          <div class="bars" id="barsCatViews"></div>
+        </div>
+        <div class="card chart-card">
+          <h3>Chủ đề được gửi nhiều nhất</h3>
+          <p class="chart-sub">Đếm theo số cfs gửi lên, kể cả cfs chưa được duyệt.</p>
+          <div class="bars" id="barsSubmits"></div>
+        </div>
+        <div class="card chart-card">
+          <h3>Đã đăng theo chủ đề</h3>
+          <p class="chart-sub">Số cfs thực tế đang hiển thị trên bảng tin.</p>
+          <div class="bars" id="barsPublished"></div>
+        </div>
+      </div>
+    </section>
+    <!-- ===== Cài đặt ===== -->
+    <section class="panel" id="panel-settings" role="tabpanel" hidden>
+      <div class="panel-head">
+        <div>
+          <h2>Cài đặt</h2>
+          <p class="panel-sub">Sửa ở đây là trang công khai đổi theo ngay, không cần mở code.
+            Mọi giá trị được lưu trong Apps Script của bạn.</p>
+        </div>
+      </div>
+
+      <div class="set-grid">
+        <form class="card set-card" id="formSettings">
+          <h3>Thông tin trang</h3>
+          <div class="set-row">
+            <label class="label" for="sName">Tên trang</label>
+            <input class="input" id="sName" maxlength="60">
+          </div>
+          <div class="set-2">
+            <div class="set-row">
+              <label class="label" for="sShort">Tên ngắn (logo)</label>
+              <input class="input" id="sShort" maxlength="24">
+            </div>
+            <div class="set-row">
+              <label class="label" for="sSchool">Tên trường</label>
+              <input class="input" id="sSchool" maxlength="80">
+            </div>
+          </div>
+          <div class="set-row">
+            <label class="label" for="sTagline">Câu giới thiệu ngắn</label>
+            <input class="input" id="sTagline" maxlength="120">
+          </div>
+          <div class="set-row">
+            <label class="label" for="sFanpage">Link fanpage (để trống thì ẩn nút)</label>
+            <input class="input" id="sFanpage" type="url" placeholder="https://facebook.com/...">
+          </div>
+
+          <h3>Nhận confession</h3>
+          <div class="set-2">
+            <div class="set-row">
+              <label class="label" for="sMin">Tối thiểu (ký tự)</label>
+              <input class="input" id="sMin" type="number" min="5" max="500">
+            </div>
+            <div class="set-row">
+              <label class="label" for="sMax">Tối đa (ký tự)</label>
+              <input class="input" id="sMax" type="number" min="100" max="10000">
+            </div>
+          </div>
+          <div class="set-2">
+            <div class="set-row">
+              <label class="label" for="sRate">Số cfs mỗi người</label>
+              <input class="input" id="sRate" type="number" min="1" max="50">
+            </div>
+            <div class="set-row">
+              <label class="label" for="sWindow">Trong (phút)</label>
+              <input class="input" id="sWindow" type="number" min="1" max="1440">
+            </div>
+          </div>
+          <div class="set-2">
+            <div class="set-row">
+              <label class="label" for="sMaxImg">Số ảnh tối đa mỗi cfs</label>
+              <input class="input" id="sMaxImg" type="number" min="1" max="3">
+            </div>
+            <div class="set-row">
+              <label class="label" for="sPage">Số cfs mỗi trang</label>
+              <input class="input" id="sPage" type="number" min="3" max="60">
+            </div>
+          </div>
+
+          <h3>Bật / tắt</h3>
+          <label class="switch">
+            <input type="checkbox" id="sImages">
+            <span class="sw" aria-hidden="true"></span>
+            <span><strong>Cho gửi kèm ảnh</strong><small>Tắt là khu vực chọn ảnh biến mất khỏi form</small></span>
+          </label>
+          <label class="switch">
+            <input type="checkbox" id="sAdvise">
+            <span class="sw" aria-hidden="true"></span>
+            <span><strong>Khuyên che mặt trước khi đăng</strong><small>Hiện nhãn “Nên che mặt” và nhắc nhẹ khi gửi</small></span>
+          </label>
+          <label class="switch">
+            <input type="checkbox" id="sAnalytics">
+            <span class="sw" aria-hidden="true"></span>
+            <span><strong>Đếm lượt ghé &amp; chủ đề được xem</strong><small>Chỉ cộng dồn số, không lưu gì về người ghé</small></span>
+          </label>
+          <label class="switch danger-sw">
+            <input type="checkbox" id="sPaused">
+            <span class="sw" aria-hidden="true"></span>
+            <span><strong>Tạm nghỉ nhận cfs</strong><small>Người gửi sẽ thấy lời nhắn bên dưới</small></span>
+          </label>
+          <div class="set-row">
+            <label class="label" for="sPausedMsg">Lời nhắn khi tạm nghỉ</label>
+            <input class="input" id="sPausedMsg" maxlength="200">
+          </div>
+
+          <p class="field-error" id="setError" role="alert" hidden></p>
+          <button class="btn btn-primary btn-block" type="submit" id="setBtn">
+            <span class="btn-label">Lưu cài đặt</span><span class="spinner" aria-hidden="true"></span>
+          </button>
+        </form>
+
+        <div class="set-side">
+          <form class="card set-card" id="formPw">
+            <h3>Tài khoản quản trị</h3>
+            <div class="set-row">
+              <label class="label" for="pUser">Tên đăng nhập</label>
+              <input class="input" id="pUser" autocomplete="username">
+            </div>
+            <div class="set-row">
+              <label class="label" for="pOld">Mật khẩu hiện tại</label>
+              <input class="input" id="pOld" type="password" autocomplete="current-password">
+            </div>
+            <div class="set-row">
+              <label class="label" for="pNew">Mật khẩu mới</label>
+              <input class="input" id="pNew" type="password" autocomplete="new-password">
+              <p class="help">Từ 10 ký tự, có cả chữ và số. Đổi xong sẽ phải đăng nhập lại.</p>
+            </div>
+            <p class="field-error" id="pwError" role="alert" hidden></p>
+            <button class="btn btn-primary btn-block" type="submit" id="pwBtn">
+              <span class="btn-label">Đổi mật khẩu</span><span class="spinner" aria-hidden="true"></span>
+            </button>
+          </form>
+
+          <div class="card set-card">
+            <h3>Nơi dữ liệu nằm</h3>
+            <ul class="links" id="setLinks"></ul>
+            <p class="help">Ảnh nằm trong Drive của bạn, cfs nằm trong Sheet của bạn.
+              Xoá cfs trên trang này là ảnh cũng vào thùng rác Drive.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Xem ảnh" hidden>
+  <div class="modal-backdrop" data-lbclose></div>
+  <button class="lb-close icon-btn" type="button" data-lbclose aria-label="Đóng">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+      <path d="M6 6l12 12M18 6 6 18"/>
+    </svg>
+  </button>
+  <img id="lightboxImg" alt="Ảnh kèm confession">
+</div>
+
+<div class="toast-wrap" id="toastWrap" aria-live="polite" aria-atomic="true"></div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>404 — Không tìm thấy trang | TGU Confessions</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%8C%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/css/style.css">
+<script>
+  (function () {
+    document.documentElement.classList.add("js");
+    try {
+      var s = localStorage.getItem("cfs-theme");
+      var light = window.matchMedia("(prefers-color-scheme: light)").matches;
+      document.documentElement.setAttribute("data-theme", s || (light ? "light" : "dark"));
+    } catch (e) {}
+  })();
+</script>
+<style>
+  .err { min-height: 100svh; display: grid; place-items: center; text-align: center; padding: 30px; }
+  .err h1 { font-size: clamp(4rem, 18vw, 9rem); margin: 0; letter-spacing: -.05em; }
+  .err p { color: var(--text-soft); max-width: 46ch; margin-inline: auto; }
+</style>
+</head>
+<body>
+<div class="bg-decor" aria-hidden="true">
+  <span class="blob blob-1"></span><span class="blob blob-2"></span><span class="blob blob-3"></span>
+  <div class="grid-overlay"></div>
+</div>
+
+<main class="err">
+  <div>
+    <h1 class="grad">404</h1>
+    <h2>Confession này đi đâu mất rồi 🫧</h2>
+    <p>Trang bạn tìm không tồn tại, hoặc cfs đã bị ẩn. Quay về đọc mấy cái khác nhé.</p>
+    <p style="margin-top:22px">
+      <a class="btn btn-primary btn-lg" href="./">Về trang chủ</a>
+    </p>
+  </div>
+</main>
+</body>
+</html>
