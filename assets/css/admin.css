@@ -124,6 +124,12 @@
   border: 1px solid var(--border); background: var(--surface-2);
   font-size: .74rem; font-weight: 700; color: var(--text-soft);
 }
+/* Số đã cấp cho người gửi, chưa đăng -> nhạt hơn số đã đăng */
+.ad-no.is-hold {
+  font-size: .95rem; background: none; -webkit-text-fill-color: currentColor;
+  color: var(--text-dim); border: 1px dashed var(--border);
+  padding: 1px 9px; border-radius: 99px;
+}
 .ad-when, .ad-len { font-size: .75rem; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .ad-len { margin-left: auto; }
 

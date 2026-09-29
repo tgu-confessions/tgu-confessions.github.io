@@ -252,7 +252,9 @@
       '<article class="ad-card" data-id="' + esc(it.id) + '" data-mode="' + mode + '">' +
         '<header class="ad-top">' +
           (isPending
-            ? '<span class="ad-when">' + esc(fmtWhen(it.submittedAt)) + "</span>"
+            ? '<span class="ad-no is-hold" title="Số đã cấp cho người gửi ngay lúc họ bấm gửi">#' +
+                (it.number || "?") + "</span>" +
+              '<span class="ad-when">' + esc(fmtWhen(it.submittedAt)) + "</span>"
             : '<span class="ad-no">#' + (it.number || "?") + "</span>") +
           '<span class="ad-cat"><span aria-hidden="true">' + c.emoji + "</span> " + esc(c.label) + "</span>" +
           (isPending ? "" : '<span class="ad-when">' + esc(fmtDate(it.date)) + "</span>") +

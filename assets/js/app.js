@@ -496,6 +496,28 @@
     store(RL_KEY, JSON.stringify(list));
   }
 
+  /* ===================== Số thứ tự của người gửi =====================
+     Số được backend cấp ngay lúc gửi, nên người gửi biết luôn cfs của mình
+     là số mấy và tìm lại được trên bảng tin sau khi admin duyệt. */
+  var nextNum = null;
+
+  function setNextNum(n) {
+    n = parseInt(n, 10);
+    if (!n || n < 1) return;
+    nextNum = n;
+    var box = $("#cfsNumBox"), val = $("#cfsNumNext");
+    if (val) val.textContent = "#" + n;
+    if (box) box.hidden = false;
+  }
+
+  /* Provider không cấp số (Google Form, Firebase...) -> đoán từ bảng tin */
+  function guessNextNum() {
+    if (nextNum) return;
+    var max = 0;
+    ALL.forEach(function (x) { if (x.number > max) max = x.number; });
+    if (max) setNextNum(max + 1);
+  }
+
   /* =========================== Form =========================== */
   function initForm() {
     var form = $("#cfsForm");
@@ -560,8 +582,9 @@
           setLabel("Đang gửi...");
           return API.submit({ content: content, category: selectedCat, images: urls });
         })
-        .then(function () {
+        .then(function (res) {
           logSubmit();
+          var mine = (res && parseInt(res.number, 10)) || nextNum || 0;
           form.reset();
           picked = [];
           shownThumbs = {};
@@ -573,7 +596,10 @@
             x.setAttribute("aria-checked", i === 0 ? "true" : "false");
           });
           refreshCounter();
-          openModal();
+          openModal(mine);
+          // số của người kế tiếp
+          var nx = (res && parseInt(res.nextNumber, 10)) || (mine ? mine + 1 : 0);
+          if (nx) setNextNum(nx);
           if (API.isDemo) {
             toast("Đang ở chế độ DEMO: cfs chỉ lưu trong máy bạn. Xem README để nối backend thật.", "err");
             loadFeed(true);
@@ -593,9 +619,15 @@
 
   /* =========================== Modal =========================== */
   var lastFocus = null;
-  function openModal() {
+  function openModal(num) {
     var m = $("#thanksModal");
     if (!m) return;
+    var box = $("#thanksNumBox", m), val = $("#thanksNum", m);
+    num = parseInt(num, 10);
+    if (box && val) {
+      if (num > 0) { val.textContent = "#" + num; box.hidden = false; }
+      else box.hidden = true;
+    }
     lastFocus = document.activeElement;
     m.hidden = false;
     document.body.style.overflow = "hidden";
@@ -838,6 +870,7 @@
       if (total) { total.setAttribute("data-count-to", ALL.length); countUp(total); }
       render(true);
       jumpToHash();
+      guessNextNum();
     });
   }
 
@@ -903,10 +936,12 @@
           applySettings(b.settings);
           refreshAfterSettings();
         }
+        if (b && b.nextNumber) setNextNum(b.nextNumber);
         loadFeed(false);
         if (window.CFS_STATS) window.CFS_STATS.visit();
       });
     } else {
+      API.nextNumber().then(function (n) { if (n) setNextNum(n); });
       loadFeed(false);
       if (window.CFS_STATS) window.CFS_STATS.visit();
     }

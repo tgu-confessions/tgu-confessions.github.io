@@ -573,7 +573,25 @@ button { cursor: pointer; border: 0; background: none; }
 .paused-note::before { content: "🌙"; font-size: 1.2rem; }
 .cfs-form.is-paused .form-row,
 .cfs-form.is-paused .check,
+.cfs-form.is-paused .cfs-num,
 .cfs-form.is-paused .form-foot { opacity: .45; pointer-events: none; }
+
+/* Số thứ tự người gửi sẽ nhận — hiện ngay đầu ô gửi cfs */
+.cfs-num {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+  margin-bottom: 20px; padding: 13px 16px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--grad-soft);
+}
+.cfs-num-ico { display: flex; color: var(--violet); }
+.cfs-num-ico svg { width: 19px; height: 19px; }
+.cfs-num-text { font-size: .9rem; font-weight: 700; color: var(--text); }
+.cfs-num-value {
+  margin-left: 4px; font-size: 1.15rem; font-variant-numeric: tabular-nums;
+  background: var(--grad-text); -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.cfs-num-note { flex: 1 1 100%; font-size: .8rem; color: var(--text-dim); }
 
 .form-foot { display: flex; flex-direction: column; gap: 14px; }
 .form-note {
@@ -731,6 +749,21 @@ button { cursor: pointer; border: 0; background: none; }
 @keyframes draw { from { stroke-dashoffset: 30; } to { stroke-dashoffset: 0; } }
 .modal-card h3 { font-size: 1.35rem; }
 .modal-card p { color: var(--text-soft); font-size: .94rem; margin-bottom: 22px; }
+
+/* Số cfs vừa gửi — để người gửi ghi nhớ */
+.thanks-num {
+  margin: 16px 0 4px; padding: 14px 16px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--grad-soft);
+}
+.thanks-num-label { display: block; font-size: .82rem; color: var(--text-dim); }
+.thanks-num-value {
+  display: block; margin: 2px 0 6px;
+  font-size: 2rem; line-height: 1.1; font-variant-numeric: tabular-nums;
+  background: var(--grad-text); -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.thanks-num-note { display: block; font-size: .8rem; color: var(--text-soft); }
 
 /* Toast */
 .toast-wrap {

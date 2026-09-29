@@ -117,14 +117,22 @@
       return new Promise(function (resolve) {
         var items = self._read();
         var max = items.reduce(function (m, x) { return Math.max(m, x.number || 0); }, 0);
+        var num = max + 1;
         items.push({
-          number: max + 1, date: todayISO(),
+          number: num, date: todayISO(),
           category: data.category, content: data.content,
           images: parseImages(data.images)
         });
         try { localStorage.setItem(self.KEY, JSON.stringify(items)); } catch (e) {}
-        setTimeout(resolve, 700); // giả lập độ trễ mạng cho mượt
+        // giả lập độ trễ mạng cho mượt
+        setTimeout(function () { resolve({ ok: true, number: num, nextNumber: num + 1 }); }, 700);
       });
+    },
+
+    /* Số mà cfs gửi lúc này sẽ nhận — dùng để hiện trước trong ô gửi */
+    nextNumber: function () {
+      var max = this._read().reduce(function (m, x) { return Math.max(m, x.number || 0); }, 0);
+      return Promise.resolve(max + 1);
     }
   };
 
@@ -460,7 +468,18 @@
       var self = this;
       return this._call({ action: "bootstrap" }).then(function (j) {
         self._cache = mapItems(j);
-        return { settings: j.settings || null, items: self._cache };
+        return {
+          settings: j.settings || null,
+          items: self._cache,
+          nextNumber: parseInt(j.nextNumber, 10) || null
+        };
+      });
+    },
+
+    /* Số mà cfs gửi lúc này sẽ nhận (tính cả cfs đang chờ duyệt) */
+    nextNumber: function () {
+      return this._call({ action: "list" }).then(function (j) {
+        return parseInt(j.nextNumber, 10) || null;
       });
     },
 
@@ -508,12 +527,18 @@
     hasSettings: !!active.bootstrap,
     list: function () { return active.list(); },
     submit: function (data) { return active.submit(data); },
+    /* Số thứ tự mà cfs gửi lúc này sẽ nhận. Provider không hỗ trợ -> null,
+       lúc đó trang tự đoán bằng số lớn nhất trên bảng tin + 1. */
+    nextNumber: function () {
+      if (!active.nextNumber) return Promise.resolve(null);
+      return active.nextNumber().catch(function () { return null; });
+    },
     /* Lấy cài đặt + danh sách trong một lượt. Lỗi thì trả về rỗng, không chặn trang. */
     bootstrap: function () {
-      if (!active.bootstrap) return Promise.resolve({ settings: null, items: null });
+      if (!active.bootstrap) return Promise.resolve({ settings: null, items: null, nextNumber: null });
       return active.bootstrap().catch(function (err) {
         console.warn("[CFS] Không lấy được cài đặt:", err && err.message);
-        return { settings: null, items: null };
+        return { settings: null, items: null, nextNumber: null };
       });
     },
     /* Dự phòng: nếu provider thật lỗi, vẫn hiển thị được gì đó thay vì trang trắng */

@@ -276,6 +276,19 @@
     </header>
 
     <form class="card card-lg cfs-form reveal" id="cfsForm" novalidate data-reveal-delay="80">
+      <div class="cfs-num" id="cfsNumBox" hidden>
+        <span class="cfs-num-ico" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 4 7 20M17 4l-2 16M4.5 9h15M3.5 15h15"/>
+          </svg>
+        </span>
+        <span class="cfs-num-text">
+          Cfs của bạn sẽ mang số
+          <strong class="cfs-num-value" id="cfsNumNext">#—</strong>
+        </span>
+        <span class="cfs-num-note">Ghi nhớ số này để tìm lại cfs của mình trên bảng tin</span>
+      </div>
+
       <div class="form-row">
         <label class="label" for="cfsCategory">Chủ đề</label>
         <div class="chips" id="categoryChips" role="radiogroup" aria-label="Chọn chủ đề"></div>
@@ -504,6 +517,11 @@
       </svg>
     </div>
     <h3 id="thanksTitle">Đã gửi rồi nha!</h3>
+    <div class="thanks-num" id="thanksNumBox" hidden>
+      <span class="thanks-num-label">Cfs của bạn là số</span>
+      <strong class="thanks-num-value" id="thanksNum">#—</strong>
+      <span class="thanks-num-note">Ghi nhớ số này nhé — khi được duyệt, cfs sẽ lên bảng tin với đúng số này.</span>
+    </div>
     <p>Confession của bạn đang chờ duyệt. Không có tên bạn ở đâu cả — chỉ một con số thôi <span class="emo">:&gt;&gt;</span></p>
     <button class="btn btn-primary" type="button" data-close>Ừ, cảm ơn</button>
   </div>

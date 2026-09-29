@@ -227,9 +227,9 @@ function doPost(e) {
     /* ---- công khai ---- */
     if (action === 'submit')    return json(submitConfession(body));
     if (action === 'ping')      return json({ ok: true, counted: ping(body) });
-    if (action === 'list')      return json({ ok: true, items: listApproved() });
+    if (action === 'list')      return json({ ok: true, items: listApproved(), nextNumber: nextNumber() });
     /* một lượt gọi lấy cả cài đặt + danh sách, để trang tải nhanh hơn */
-    if (action === 'bootstrap') return json({ ok: true, settings: getSettings(), items: listApproved() });
+    if (action === 'bootstrap') return json({ ok: true, settings: getSettings(), items: listApproved(), nextNumber: nextNumber() });
 
     /* ---- đăng nhập bằng tên + mật khẩu ---- */
     if (action === 'login') return json(login(body));
@@ -561,10 +561,14 @@ function submitConfession(body) {
 
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
+  var num = 0;
   try {
     var sh = inboxSheet();
     var id = Utilities.getUuid();
     var now = new Date();
+    /* Cấp số ngay lúc gửi, để người gửi biết cfs của mình là số mấy.
+       Admin vẫn sửa được số này ở bước duyệt. */
+    num = nextNumber();
     var row = [];
     row[CFG.COL.id - 1] = id;
     row[CFG.COL.submittedAt - 1] = now;
@@ -572,7 +576,7 @@ function submitConfession(body) {
     row[CFG.COL.content - 1] = content;
     row[CFG.COL.images - 1] = urls.join('\n');
     row[CFG.COL.status - 1] = 'pending';
-    row[CFG.COL.number - 1] = '';
+    row[CFG.COL.number - 1] = num;
     row[CFG.COL.fileIds - 1] = ids.join(',');
     row[CFG.COL.displayDate - 1] = fmtDate(now);
     sh.appendRow(row);
@@ -581,7 +585,7 @@ function submitConfession(body) {
   }
 
   bump('submit:' + category);
-  return { ok: true, images: urls };
+  return { ok: true, images: urls, number: num, nextNumber: num + 1 };
 }
 
 /* Lưu 1 ảnh data URL vào Drive, trả về link xem được công khai */

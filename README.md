@@ -126,8 +126,14 @@ mất khi đóng tab, và tự hết hạn sau 8 giờ. Đổi mật khẩu sẽ
 
 **Chờ duyệt** — mỗi cfs là một thẻ: xem nội dung, xem ảnh (bấm để phóng to), **bỏ từng ảnh**
 nếu ảnh lộ mặt, sửa nội dung để cắt thông tin nhận dạng, đổi chủ đề, đặt số thứ tự
-(đã gợi ý số tiếp theo) rồi **Duyệt & đăng**. Hoặc **Từ chối** (giữ lại trong Sheet để đối chiếu),
+rồi **Duyệt & đăng**. Hoặc **Từ chối** (giữ lại trong Sheet để đối chiếu),
 hoặc **Xoá hẳn** (xoá dòng + đưa ảnh vào thùng rác Drive).
+
+> **Số thứ tự được cấp ngay lúc người gửi bấm gửi**, không phải lúc duyệt — vì trang có
+> hiện số đó cho người gửi ghi nhớ (xem mục dưới). Thẻ chờ duyệt vì vậy mang sẵn số đã cấp
+> (badge nét đứt `#12`), và ô số trong thẻ điền sẵn đúng số ấy. Sửa số vẫn được, nhưng sửa
+> thì người gửi tìm không ra cfs của mình — nên chỉ đổi khi thật cần. Cfs bị từ chối sẽ để
+> lại một khoảng trống trong dãy số, chuyện bình thường.
 
 **Đã đăng** — tìm theo nội dung hoặc `#số`, sửa lại, hạ xuống chờ duyệt, hoặc xoá hẳn.
 
@@ -141,7 +147,22 @@ Trang tự đăng xuất sau 30 phút không hoạt động (`admin.idleLogoutMi
 
 ---
 
-## 4. Thống kê người ghé trang
+## 4. Số thứ tự người gửi nhìn thấy
+
+Ngay đầu ô gửi cfs có dải *"Cfs của bạn sẽ mang số **#N**"*, và sau khi gửi xong hộp cảm ơn
+hiện lại đúng số đó to rõ để người gửi ghi nhớ — đó là số cfs sẽ mang khi lên bảng tin, tìm
+lại bằng ô tìm kiếm `#N` hoặc link `…/#cfs-N`.
+
+Số do backend cấp trong một `LockService` lock ngay lúc nhận cfs, nên hai người bấm gửi cùng
+lúc không bao giờ nhận cùng số. Trang lấy số dự kiến trong cùng lượt gọi `bootstrap` đang
+dùng để tải cài đặt + bảng tin, không thêm lượt mạng nào.
+
+Provider không cấp số (`googleform`, `firebase`) thì trang tự đoán bằng *số lớn nhất trên
+bảng tin + 1*; nếu vẫn không đoán được thì dải số tự ẩn, không hiện số sai.
+
+---
+
+## 5. Thống kê người ghé trang
 
 Tab **Thống kê** cho biết:
 
