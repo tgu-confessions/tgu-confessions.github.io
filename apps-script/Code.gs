@@ -256,7 +256,7 @@ function doPost(e) {
     if (action === 'bootstrap') return json({ ok: true, settings: getSettings(), items: listApproved(), nextNumber: nextNumber() });
 
     /* ---- đăng nhập bằng tên + mật khẩu ---- */
-    if (action === 'login') return json(login(body));
+    if (action === 'login') { ensureAdminAccount(); return json(login(body)); }
 
     /* ---- cần phiên đăng nhập hợp lệ ---- */
     if (['session', 'logout', 'pending', 'approved', 'approve', 'unapprove', 'reject',
@@ -482,9 +482,28 @@ function changePassword(body) {
 /* ============================== SHEETS ============================== */
 function inboxSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
+  if (!ss) {
+    throw new Error('Script này phải được tạo từ trong một Google Sheet ' +
+                    '(mở Sheet → Extensions → Apps Script).');
+  }
   var sh = ss.getSheetByName(CFG.SHEET_INBOX);
-  if (!sh) throw new Error('Chưa có sheet "' + CFG.SHEET_INBOX + '". Hãy chạy hàm setup() một lần.');
+  if (!sh) {
+    /* Tự tạo thay vì bắt lỗi: quên chạy setup() thì trang vẫn hoạt động. */
+    sh = ss.insertSheet(CFG.SHEET_INBOX);
+    sh.appendRow(HEADERS);
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1, HEADERS.length).setFontWeight('bold');
+    sh.setColumnWidth(CFG.COL.content, 460);
+  }
   return ensureColumns(sh);
+}
+
+/* Bảo đảm có tài khoản quản trị, kể cả khi chưa ai chạy setup() */
+function ensureAdminAccount() {
+  var props = PropertiesService.getScriptProperties();
+  if (!props.getProperty(CFG.PROP_HASH)) {
+    saveAccount(CFG.DEFAULT_USER, CFG.DEFAULT_PASS, true);
+  }
 }
 
 /* Sheet dựng từ bản cũ chỉ có 9 cột — thêm cột likes/dislikes cho đủ,
