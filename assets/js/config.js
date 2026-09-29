@@ -32,6 +32,17 @@ window.CFS_CONFIG = {
     windowMinutes: 60
   },
 
+  /* ---------- Bình luận trên bảng tin ----------
+     Tên người bình luận do BACKEND tự random (ví dụ "Mèo Ngái Ngủ 42"),
+     trang không cho ai tự chọn tên. Admin bật/tắt được trong tab Cài đặt. */
+  comments: {
+    enabled: true,
+    maxChars: 400,
+    // chặn mềm phía trình duyệt, tránh một người dội bình luận
+    maxPerWindow: 10,
+    windowMinutes: 10
+  },
+
   /* ---------- Chủ đề cfs ---------- */
   categories: [
     { id: "crush", label: "Xin info cờ-rút", emoji: "💌" },

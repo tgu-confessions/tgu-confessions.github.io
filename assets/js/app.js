@@ -457,6 +457,10 @@
 
     (CFG.analytics = CFG.analytics || {}).enabled = s.analyticsEnabled !== false;
 
+    var C = CFG.comments = CFG.comments || {};
+    C.enabled = s.commentsEnabled !== false;
+    if (s.maxCommentChars) C.maxChars = s.maxCommentChars;
+
     if (s.feedPageSize) {
       (CFG.feed = CFG.feed || {}).pageSize = s.feedPageSize;
       PAGE_SIZE = s.feedPageSize;
@@ -494,6 +498,168 @@
     var list = recentSubmits();
     list.push(Date.now());
     store(RL_KEY, JSON.stringify(list));
+  }
+
+  /* ========================= Bình luận ẩn danh =========================
+     Tên người bình luận do BACKEND tự random, trang không cho chọn tên.
+     Không tài khoản, không email, không id thiết bị. */
+  var CMT_KEY = "cfs-comment-log";
+  var cmtCache = {};          // number -> mảng bình luận đã tải
+  var cmtBusy = {};           // number -> đang gửi
+  var cmtOpen = {};           // number -> thread đang mở (giữ lại khi bảng tin vẽ lại)
+
+  function cmtCfg() { return CFG.comments || {}; }
+  function commentsOn() {
+    return cmtCfg().enabled !== false && API && API.hasComments;
+  }
+  function cmtMaxChars() { return cmtCfg().maxChars || 400; }
+
+  function recentComments() {
+    var winMs = (cmtCfg().windowMinutes || 10) * 60000;
+    var now = Date.now(), list = [];
+    try { list = JSON.parse(store(CMT_KEY) || "[]"); } catch (e) { list = []; }
+    if (!Array.isArray(list)) list = [];
+    return list.filter(function (t) { return typeof t === "number" && now - t < winMs; });
+  }
+  function logComment() {
+    var l = recentComments();
+    l.push(Date.now());
+    store(CMT_KEY, JSON.stringify(l));
+  }
+
+  function initials(name) {
+    var parts = String(name || "?").trim().split(/\s+/);
+    return (parts[0] || "?").charAt(0).toUpperCase();
+  }
+
+  function commentHTML(c) {
+    return '' +
+      '<li class="cmt">' +
+        '<span class="cmt-ava" aria-hidden="true">' + escapeHTML(initials(c.name)) + "</span>" +
+        '<div class="cmt-main">' +
+          '<div class="cmt-head">' +
+            '<span class="cmt-name">' + escapeHTML(c.name || "Ẩn danh") + "</span>" +
+            (c.date ? '<span class="cmt-date">' + escapeHTML(fmtDate(c.date)) + "</span>" : "") +
+          "</div>" +
+          '<p class="cmt-text">' + escapeHTML(c.content || "") + "</p>" +
+        "</div>" +
+      "</li>";
+  }
+
+  function threadHTML(n, list) {
+    var body = list.length
+      ? '<ul class="cmt-list">' + list.map(commentHTML).join("") + "</ul>"
+      : '<p class="cmt-empty">Chưa có bình luận. Bạn nói gì đó đi <span class="emo">:&gt;&gt;</span></p>';
+    return body +
+      '<form class="cmt-form" data-cmt-form="' + n + '">' +
+        '<label class="sr-only" for="cmtInput-' + n + '">Bình luận cho confession số ' + n + "</label>" +
+        '<textarea class="input cmt-input" id="cmtInput-' + n + '" rows="2" maxlength="' + cmtMaxChars() + '" ' +
+          'placeholder="Viết bình luận... tên sẽ do hệ thống tự đặt"></textarea>' +
+        '<input type="text" class="sr-only" tabindex="-1" autocomplete="off" aria-hidden="true" data-cmt-honey>' +
+        '<div class="cmt-foot">' +
+          '<span class="cmt-note">Tên hiển thị do hệ thống random — không ai biết bạn là ai.</span>' +
+          '<button class="btn btn-primary btn-sm" type="submit">Gửi bình luận</button>' +
+        "</div>" +
+      "</form>";
+  }
+
+  function renderThread(n) {
+    var box = document.getElementById("cmt-" + n);
+    if (!box) return;
+    box.innerHTML = threadHTML(n, cmtCache[n] || []);
+  }
+
+  function setCmtCount(n, count) {
+    var item = ALL.filter(function (x) { return x.number === n; })[0];
+    if (item) item.comments = count;
+    var btn = grid && grid.querySelector('[data-comments="' + n + '"] .cfs-cnt');
+    if (btn) btn.textContent = count;
+    else {
+      var b = grid && grid.querySelector('[data-comments="' + n + '"]');
+      if (b && count) {
+        var s = document.createElement("span");
+        s.className = "cfs-cnt";
+        s.textContent = count;
+        b.appendChild(s);
+      }
+    }
+  }
+
+  function openThread(n, btn) {
+    var box = document.getElementById("cmt-" + n);
+    if (!box) return;
+    cmtOpen[n] = true;
+    box.hidden = false;
+    btn.setAttribute("aria-expanded", "true");
+    if (cmtCache[n]) { renderThread(n); return; }
+    box.innerHTML = '<p class="cmt-empty">Đang tải bình luận...</p>';
+    API.comments(n).then(function (list) {
+      cmtCache[n] = list || [];
+      renderThread(n);
+      setCmtCount(n, cmtCache[n].length);
+    }).catch(function (ex) {
+      box.innerHTML = '<p class="cmt-empty">Không tải được bình luận: ' +
+        escapeHTML((ex && ex.message) || "lỗi mạng") + "</p>";
+    });
+  }
+
+  function closeThread(n, btn) {
+    var box = document.getElementById("cmt-" + n);
+    if (box) box.hidden = true;
+    delete cmtOpen[n];
+    btn.setAttribute("aria-expanded", "false");
+  }
+
+  /* Bảng tin vẽ lại (đổi lọc, tìm kiếm, tải thêm) -> mở lại đúng những
+     thread đang mở, kèm nội dung đã tải, để người đọc không mất chỗ. */
+  function restoreThreads() {
+    Object.keys(cmtOpen).forEach(function (k) {
+      var n = parseInt(k, 10);
+      var box = document.getElementById("cmt-" + n);
+      if (!box) return;
+      box.hidden = false;
+      renderThread(n);
+      var btn = grid && grid.querySelector('[data-comments="' + n + '"]');
+      if (btn) btn.setAttribute("aria-expanded", "true");
+    });
+  }
+
+  function sendComment(form) {
+    var n = parseInt(form.dataset.cmtForm, 10);
+    if (!n || cmtBusy[n]) return;
+
+    var ta = $(".cmt-input", form);
+    var honey = $("[data-cmt-honey]", form);
+    var text = (ta.value || "").trim();
+
+    if (honey && honey.value) return;                       // bot
+    if (text.length < 2) { toast("Viết dài hơn một chút nhé.", "err"); ta.focus(); return; }
+    if (text.length > cmtMaxChars()) { toast("Bình luận tối đa " + cmtMaxChars() + " ký tự.", "err"); return; }
+
+    var cap = cmtCfg().maxPerWindow || 10;
+    if (recentComments().length >= cap) {
+      toast("Bạn bình luận hơi nhiều rồi (" + cap + " lần trong " +
+            (cmtCfg().windowMinutes || 10) + " phút). Nghỉ tay chút nhé.", "err");
+      return;
+    }
+
+    var btn = $("button[type=submit]", form);
+    cmtBusy[n] = true;
+    if (btn) { btn.disabled = true; btn.textContent = "Đang gửi..."; }
+
+    API.comment(n, text).then(function (res) {
+      logComment();
+      var c = (res && res.comment) || { name: "Ẩn danh", content: text, date: "" };
+      cmtCache[n] = (cmtCache[n] || []).concat([c]);
+      renderThread(n);
+      setCmtCount(n, (res && res.count) || cmtCache[n].length);
+      toast("Đã gửi — bạn đang là “" + c.name + "”", "ok");
+    }).catch(function (ex) {
+      toast("Không gửi được bình luận: " + ((ex && ex.message) || "lỗi mạng"), "err");
+      if (btn) { btn.disabled = false; btn.textContent = "Gửi bình luận"; }
+    }).then(function () {
+      cmtBusy[n] = false;
+    });
   }
 
   /* ===================== Số thứ tự của người gửi =====================
@@ -596,10 +762,12 @@
             x.setAttribute("aria-checked", i === 0 ? "true" : "false");
           });
           refreshCounter();
-          openModal(mine);
+          var live = !!(res && res.status === "approved");
+          openModal(mine, live);
           // số của người kế tiếp
           var nx = (res && parseInt(res.nextNumber, 10)) || (mine ? mine + 1 : 0);
           if (nx) setNextNum(nx);
+          if (live) loadFeed(true);       // đã lên bảng tin -> tải lại cho thấy ngay
           if (API.isDemo) {
             toast("Đang ở chế độ DEMO: cfs chỉ lưu trong máy bạn. Xem README để nối backend thật.", "err");
             loadFeed(true);
@@ -619,14 +787,27 @@
 
   /* =========================== Modal =========================== */
   var lastFocus = null;
-  function openModal(num) {
+  function openModal(num, live) {
     var m = $("#thanksModal");
     if (!m) return;
-    var box = $("#thanksNumBox", m), val = $("#thanksNum", m);
+    var box = $("#thanksNumBox", m), val = $("#thanksNum", m), note = $("#thanksNumNote", m);
     num = parseInt(num, 10);
     if (box && val) {
       if (num > 0) { val.textContent = "#" + num; box.hidden = false; }
       else box.hidden = true;
+    }
+    if (note) {
+      note.textContent = live
+        ? "Cfs đang ở trên bảng tin với đúng số này — kéo xuống là thấy."
+        : "Ghi nhớ số này nhé — khi được duyệt, cfs sẽ lên bảng tin với đúng số này.";
+    }
+    var msg = $("#thanksMsg", m);
+    if (msg) {
+      msg.innerHTML = live
+        ? 'Cfs không kèm ảnh nên <strong>đã lên bảng tin luôn</strong>. Không có tên bạn ở đâu cả — ' +
+          'chỉ một con số thôi <span class="emo">:&gt;&gt;</span>'
+        : 'Cfs có ảnh nên <strong>đang chờ ban quản trị xem</strong> (để không ai bị lộ mặt). ' +
+          'Không có tên bạn ở đâu cả — chỉ một con số thôi <span class="emo">:&gt;&gt;</span>';
     }
     lastFocus = document.activeElement;
     m.hidden = false;
@@ -652,15 +833,94 @@
 
   var grid = $("#feedGrid"), emptyEl = $("#feedEmpty"), moreBtn = $("#loadMore");
 
-  function likeKey() { return "cfs-liked"; }
-  function likedSet() {
-    try { return new Set(JSON.parse(store(likeKey()) || "[]")); } catch (e) { return new Set(); }
+  /* ================= Thương / Không đồng tình =================
+     Lựa chọn của người xem chỉ nằm trong localStorage của họ; server chỉ
+     giữ hai con số cộng dồn, không biết ai bấm gì. */
+  var REACT_KEY = "cfs-react";
+  var reactBusy = {};
+
+  function reactMap() {
+    var raw = store(REACT_KEY);
+    if (raw == null) {
+      // chuyển tiếp từ bản cũ chỉ có "thương"
+      var old = [];
+      try { old = JSON.parse(store("cfs-liked") || "[]"); } catch (e) { old = []; }
+      var m0 = {};
+      if (Array.isArray(old)) old.forEach(function (n) { m0[n] = "like"; });
+      store(REACT_KEY, JSON.stringify(m0));
+      return m0;
+    }
+    try {
+      var m = JSON.parse(raw || "{}");
+      return (m && typeof m === "object") ? m : {};
+    } catch (e) { return {}; }
   }
-  function toggleLike(n) {
-    var s = likedSet();
-    if (s.has(n)) s.delete(n); else s.add(n);
-    store(likeKey(), JSON.stringify(Array.prototype.slice.call(s)));
-    return s.has(n);
+
+  function myReact(n) { return reactMap()[n] || ""; }
+
+  function setMyReact(n, v) {
+    var m = reactMap();
+    if (v) m[n] = v; else delete m[n];
+    store(REACT_KEY, JSON.stringify(m));
+  }
+
+  function showCounts() { return !!(API && API.hasReactions); }
+
+  function itemByNumber(n) {
+    for (var i = 0; i < ALL.length; i++) if (ALL[i].number === n) return ALL[i];
+    return null;
+  }
+
+  /* Vẽ lại đúng hai cái nút của một thẻ, khỏi vẽ lại cả bảng tin */
+  function paintReact(n) {
+    if (!grid) return;
+    var mine = myReact(n), it = itemByNumber(n) || {};
+    ["like", "dislike"].forEach(function (kind) {
+      var btn = grid.querySelector('[data-react="' + kind + '"][data-n="' + n + '"]');
+      if (!btn) return;
+      var on = mine === kind;
+      btn.classList.toggle("is-on", on);
+      btn.setAttribute("aria-pressed", on ? "true" : "false");
+      var cnt = btn.querySelector(".cfs-cnt");
+      if (cnt) cnt.textContent = Math.max(0, Number(it[kind === "like" ? "likes" : "dislikes"]) || 0);
+    });
+  }
+
+  function doReact(n, kind) {
+    if (reactBusy[n]) return;
+    var prev = myReact(n);
+    var next = prev === kind ? "" : kind;
+
+    var dLike = (next === "like" ? 1 : 0) - (prev === "like" ? 1 : 0);
+    var dDis = (next === "dislike" ? 1 : 0) - (prev === "dislike" ? 1 : 0);
+
+    var it = itemByNumber(n);
+    var before = it ? { likes: it.likes || 0, dislikes: it.dislikes || 0 } : null;
+
+    setMyReact(n, next);
+    if (it) {
+      it.likes = Math.max(0, (Number(it.likes) || 0) + dLike);
+      it.dislikes = Math.max(0, (Number(it.dislikes) || 0) + dDis);
+    }
+    paintReact(n);
+
+    if (!showCounts()) return;              // provider không đếm -> chỉ đổi ở máy này
+
+    reactBusy[n] = true;
+    API.react(n, dLike, dDis).then(function (res) {
+      if (it && res) {
+        if (typeof res.likes === "number") it.likes = res.likes;
+        if (typeof res.dislikes === "number") it.dislikes = res.dislikes;
+        paintReact(n);
+      }
+    }).catch(function (ex) {
+      setMyReact(n, prev);                  // hoàn tác
+      if (it && before) { it.likes = before.likes; it.dislikes = before.dislikes; }
+      paintReact(n);
+      toast("Không ghi được lượt bấm: " + ((ex && ex.message) || "lỗi mạng"), "err");
+    }).then(function () {
+      reactBusy[n] = false;
+    });
   }
 
   function fmtDate(iso) {
@@ -723,9 +983,12 @@
       "</div>";
   }
 
-  function cardHTML(item, liked, i) {
+  function cardHTML(item, mine, i) {
     var c = catOf(item.category);
     var long = item.content.length > 420;
+    var cnt = showCounts();
+    var likes = Math.max(0, Number(item.likes) || 0);
+    var dislikes = Math.max(0, Number(item.dislikes) || 0);
     return '' +
       '<article class="cfs' + (long ? " is-clamped" : "") + '" id="cfs-' + item.number +
         '" style="animation-delay:' + Math.min(i * 45, 400) + 'ms">' +
@@ -737,11 +1000,24 @@
         '<p class="cfs-body">' + highlight(item.content, keyword) + "</p>" +
         imagesHTML(item) +
         '<div class="cfs-foot">' +
-          '<button class="cfs-act act-like' + (liked ? " is-on" : "") + '" type="button" data-like="' + item.number +
-            '" aria-pressed="' + (liked ? "true" : "false") + '" aria-label="Thả tim confession số ' + item.number + '">' +
+          '<button class="cfs-act act-like' + (mine === "like" ? " is-on" : "") + '" type="button" ' +
+            'data-react="like" data-n="' + item.number + '" ' +
+            'aria-pressed="' + (mine === "like" ? "true" : "false") + '" ' +
+            'aria-label="Thương confession số ' + item.number + '">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
             '<path d="M12 20.4S3.6 15.3 3.6 9.4a4.6 4.6 0 0 1 8.4-2.6 4.6 4.6 0 0 1 8.4 2.6c0 5.9-8.4 11-8.4 11z"/></svg>' +
             "Thương" +
+            (cnt ? '<span class="cfs-cnt">' + likes + "</span>" : "") +
+          "</button>" +
+          '<button class="cfs-act act-dis' + (mine === "dislike" ? " is-on" : "") + '" type="button" ' +
+            'data-react="dislike" data-n="' + item.number + '" ' +
+            'aria-pressed="' + (mine === "dislike" ? "true" : "false") + '" ' +
+            'aria-label="Không đồng tình với confession số ' + item.number + '">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+            '<path d="M7 4h8.6a2.4 2.4 0 0 1 2.4 2.4v5.3a2.4 2.4 0 0 1-2.4 2.4H13l-1.4 4a1.6 1.6 0 0 1-3.1-.5V14H7"/>' +
+            '<path d="M4.6 4.2h2.2v9.9H4.6z"/></svg>' +
+            "Không đồng tình" +
+            (cnt ? '<span class="cfs-cnt">' + dislikes + "</span>" : "") +
           "</button>" +
           '<button class="cfs-act" type="button" data-copy="' + item.number + '" aria-label="Copy link confession số ' + item.number + '">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
@@ -749,8 +1025,21 @@
             '<path d="M12.5 17.5l-1.8 1.8a3.6 3.6 0 0 1-5.1-5.1L7.4 12.4"/></svg>' +
             "Copy link" +
           "</button>" +
+          (commentsOn()
+            ? '<button class="cfs-act act-cmt" type="button" data-comments="' + item.number + '" ' +
+                'aria-expanded="false" aria-controls="cmt-' + item.number + '" ' +
+                'aria-label="Bình luận confession số ' + item.number + '">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                '<path d="M20.5 12.3c0 4-3.8 7.2-8.5 7.2-1 0-2-.15-2.9-.42L4.2 20.5l1.5-3.6A6.9 6.9 0 0 1 3.5 12.3c0-4 3.8-7.2 8.5-7.2s8.5 3.2 8.5 7.2z"/></svg>' +
+                "Bình luận" +
+                (item.comments ? '<span class="cfs-cnt">' + item.comments + "</span>" : "") +
+              "</button>"
+            : "") +
           (long ? '<button class="cfs-act cfs-more" type="button" data-expand="' + item.number + '">Đọc tiếp</button>' : "") +
         "</div>" +
+        (commentsOn()
+          ? '<div class="cfs-cmt-wrap" id="cmt-' + item.number + '" hidden></div>'
+          : "") +
       "</article>";
   }
 
@@ -760,10 +1049,11 @@
     if (reset) shown = 0;
     shown = Math.min(Math.max(shown || 0, PAGE_SIZE), Math.max(list.length, PAGE_SIZE));
 
-    var liked = likedSet();
+    var liked = reactMap();
     var slice = list.slice(0, shown);
-    grid.innerHTML = slice.map(function (it, i) { return cardHTML(it, liked.has(it.number), i); }).join("");
+    grid.innerHTML = slice.map(function (it, i) { return cardHTML(it, liked[it.number] || "", i); }).join("");
     grid.setAttribute("aria-busy", "false");
+    restoreThreads();
 
     if (emptyEl) {
       var none = list.length === 0;
@@ -827,12 +1117,9 @@
         if (window.__cfsOpenLightbox) window.__cfsOpenLightbox(shot.dataset.shot, shot);
         return;
       }
-      var likeBtn = e.target.closest("[data-like]");
-      if (likeBtn) {
-        var n = parseInt(likeBtn.dataset.like, 10);
-        var on = toggleLike(n);
-        likeBtn.classList.toggle("is-on", on);
-        likeBtn.setAttribute("aria-pressed", String(on));
+      var reactBtn = e.target.closest("[data-react]");
+      if (reactBtn) {
+        doReact(parseInt(reactBtn.dataset.n, 10), reactBtn.dataset.react);
         return;
       }
       var copyBtn = e.target.closest("[data-copy]");
@@ -849,7 +1136,31 @@
         var card = exp.closest(".cfs");
         card.classList.remove("is-clamped");
         exp.remove();
+        return;
       }
+      var cmtBtn = e.target.closest("[data-comments]");
+      if (cmtBtn) {
+        var cn = parseInt(cmtBtn.dataset.comments, 10);
+        if (cmtBtn.getAttribute("aria-expanded") === "true") closeThread(cn, cmtBtn);
+        else openThread(cn, cmtBtn);
+      }
+    });
+
+    /* Gửi bình luận — form được vẽ động nên bắt sự kiện ở cấp lưới */
+    if (grid) grid.addEventListener("submit", function (e) {
+      var form = e.target.closest("[data-cmt-form]");
+      if (!form) return;
+      e.preventDefault();
+      sendComment(form);
+    });
+
+    /* Ctrl/Cmd + Enter để gửi nhanh */
+    if (grid) grid.addEventListener("keydown", function (e) {
+      if (e.key !== "Enter" || !(e.ctrlKey || e.metaKey)) return;
+      var ta = e.target.closest(".cmt-input");
+      if (!ta) return;
+      var form = ta.closest("[data-cmt-form]");
+      if (form) { e.preventDefault(); sendComment(form); }
     });
   }
 
@@ -911,7 +1222,11 @@
     applyPaused();
   }
 
+  var booted = false;
+
   function init() {
+    if (booted) return;        // chạy đúng một lần, dù sự kiện tải trang có bắn hai lần
+    booted = true;
     applyConfigText();
     initTheme();
     initHeader();

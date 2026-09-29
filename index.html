@@ -369,7 +369,8 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <rect x="4" y="10.5" width="16" height="10" rx="2.5"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/>
           </svg>
-          Cfs được duyệt trước khi lên bảng tin. Không ai — kể cả ban quản trị — biết bạn là ai.
+          Cfs <strong>không kèm ảnh</strong> lên bảng tin ngay. Cfs <strong>có ảnh</strong> chờ ban quản trị
+          xem trước, để không ai bị lộ mặt. Dù kiểu nào cũng không ai biết bạn là ai.
         </p>
       </div>
     </form>
@@ -434,11 +435,18 @@
         <p>Cfs lên sóng kèm một con số và ngày đăng. Không tên, không lớp, không khoa, không dấu vết nào dẫn về bạn.</p>
       </article>
       <article class="card privacy reveal" data-reveal-delay="210">
+        <span class="p-ico" aria-hidden="true">💬</span>
+        <h3>Bình luận cũng ẩn danh</h3>
+        <p>Tên người bình luận do hệ thống tự random (kiểu “Mèo Ngái Ngủ 42”) — bạn không chọn được,
+          và trang không gửi tên nào lên server. Lượt <em>thương</em> / <em>không đồng tình</em> chỉ là
+          hai ô số cộng dồn của mỗi bài; lựa chọn của bạn nằm trong máy bạn.</p>
+      </article>
+      <article class="card privacy reveal" data-reveal-delay="260">
         <span class="p-ico" aria-hidden="true">📂</span>
         <h3>Mã nguồn mở</h3>
         <p>Toàn bộ trang là file tĩnh trên GitHub Pages. Ai cũng kiểm tra được code, không có gì chạy ngầm.</p>
       </article>
-      <article class="card privacy reveal" data-reveal-delay="260">
+      <article class="card privacy reveal" data-reveal-delay="310">
         <span class="p-ico" aria-hidden="true">📷</span>
         <h3>Ảnh bị xoá metadata</h3>
         <p>Mỗi ảnh được vẽ lại qua canvas ngay trong máy bạn trước khi gửi, nên EXIF — toạ độ GPS, model điện thoại, giờ chụp — bị loại bỏ. Có sẵn trình che mặt để dán nhãn lên người trong hình.</p>
@@ -519,9 +527,9 @@
     <div class="thanks-num" id="thanksNumBox" hidden>
       <span class="thanks-num-label">Cfs của bạn là số</span>
       <strong class="thanks-num-value" id="thanksNum">#—</strong>
-      <span class="thanks-num-note">Ghi nhớ số này nhé — khi được duyệt, cfs sẽ lên bảng tin với đúng số này.</span>
+      <span class="thanks-num-note" id="thanksNumNote">Ghi nhớ số này nhé — khi được duyệt, cfs sẽ lên bảng tin với đúng số này.</span>
     </div>
-    <p>Confession của bạn đang chờ duyệt. Không có tên bạn ở đâu cả — chỉ một con số thôi <span class="emo">:&gt;&gt;</span></p>
+    <p id="thanksMsg">Confession của bạn đang chờ duyệt. Không có tên bạn ở đâu cả — chỉ một con số thôi <span class="emo">:&gt;&gt;</span></p>
     <button class="btn btn-primary" type="button" data-close>Ừ, cảm ơn</button>
   </div>
 </div>

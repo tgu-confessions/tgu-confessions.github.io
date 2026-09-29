@@ -20,8 +20,8 @@
   var K_TOKEN = "cfs-admin-session";  // sessionStorage: phiên đăng nhập, mất khi đóng tab
 
   var state = {
-    url: "", token: "", pending: [], approved: [],
-    nextNumber: 1, keyword: "", tab: "pending",
+    url: "", token: "", pending: [], approved: [], comments: [],
+    nextNumber: 1, keyword: "", cmtKeyword: "", tab: "pending",
     info: null, settings: null
   };
 
@@ -95,15 +95,23 @@
     toast(err && err.message ? err.message : "Có lỗi xảy ra.", "err");
   }
 
-  /* ============================ đăng nhập ============================ */
-  function initGate() {
-    var form = $("#gateForm"), url = $("#gUrl"), user = $("#gUser"), pass = $("#gPass"),
-        err = $("#gateError"), btn = $("#gateBtn");
-
+  /* Link Apps Script lấy thẳng từ assets/js/config.js — admin không phải gõ.
+     Vẫn nhận link đã lưu trên máy để không làm hỏng cài đặt cũ. */
+  function backendUrl() {
+    var fromCfg = (CFG.backend && CFG.backend.appsScript && CFG.backend.appsScript.webAppUrl) || "";
+    if (/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec/.test(fromCfg)) return fromCfg;
     var saved = "";
     try { saved = localStorage.getItem(K_URL) || ""; } catch (e) {}
-    url.value = saved || ((CFG.backend && CFG.backend.appsScript && CFG.backend.appsScript.webAppUrl) || "");
+    return /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec/.test(saved) ? saved : "";
+  }
+
+  /* ============================ đăng nhập ============================ */
+  function initGate() {
+    var form = $("#gateForm"), user = $("#gUser"), pass = $("#gPass"),
+        err = $("#gateError"), btn = $("#gateBtn");
+
     try { user.value = localStorage.getItem(K_USER) || ""; } catch (e) {}
+    if (!user.value) user.focus(); else pass.focus();
 
     $("#gEye").addEventListener("click", function () {
       var show = pass.type === "password";
@@ -116,10 +124,11 @@
       e.preventDefault();
       err.hidden = true;
 
-      var u = url.value.trim(), un = user.value.trim(), pw = pass.value;
-      if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec/.test(u)) {
-        err.textContent = "Link phải có dạng https://script.google.com/macros/s/..../exec";
-        err.hidden = false; url.focus(); return;
+      var u = backendUrl(), un = user.value.trim(), pw = pass.value;
+      if (!u) {
+        err.innerHTML = "Chưa nối backend: mở <code>assets/js/config.js</code> và dán link deploy của " +
+                        "Apps Script vào <code>backend.appsScript.webAppUrl</code> (xem README mục 2).";
+        err.hidden = false; return;
       }
       if (!un || !pw) {
         err.textContent = "Nhập đủ tên đăng nhập và mật khẩu nhé.";
@@ -207,11 +216,14 @@
     return Promise.all([
       api("pending").then(function (j) { state.pending = j.items || []; }),
       api("approved").then(function (j) { state.approved = j.items || []; }),
+      api("adminComments", { limit: 300 }).then(function (j) { state.comments = j.items || []; })
+        .catch(function () { state.comments = []; }),
       api("session").then(function (j) { applyInfo(j.info); if (j.settings) fillSettings(j.settings); })
     ]).then(function () {
       renderCounts();
       renderPending();
       renderApproved();
+      renderComments();
       if (state.tab === "stats") loadStats();
     }).catch(guard);
   }
@@ -219,7 +231,42 @@
   function renderCounts() {
     $("#cntPending").textContent = state.pending.length;
     $("#cntApproved").textContent = state.approved.length;
+    var cc = $("#cntComments");
+    if (cc) cc.textContent = state.comments.length;
     $("#nextNo").textContent = "#" + state.nextNumber;
+  }
+
+  /* ========================= bình luận ========================= */
+  function commentRowHTML(c) {
+    return '' +
+      '<article class="ad-cmt" data-cmt-id="' + esc(c.id) + '">' +
+        '<div class="ad-cmt-top">' +
+          '<span class="ad-cmt-no">#' + (c.cfsNumber || "?") + "</span>" +
+          '<span class="ad-cmt-name">' + esc(c.name) + "</span>" +
+          '<span class="ad-when">' + esc(fmtWhen(c.createdAt) || fmtDate(c.date)) + "</span>" +
+          '<button class="btn btn-ghost btn-sm danger" type="button" data-act="rmCmt">Xoá</button>' +
+        "</div>" +
+        '<p class="ad-cmt-text">' + esc(c.content) + "</p>" +
+      "</article>";
+  }
+
+  function renderComments() {
+    var box = $("#listComments");
+    if (!box) return;
+    var kw = (state.cmtKeyword || "").toLowerCase();
+    var list = state.comments.filter(function (c) {
+      if (!kw) return true;
+      if (kw.charAt(0) === "#") return String(c.cfsNumber).indexOf(kw.slice(1).replace(/\D/g, "")) === 0;
+      return (c.content || "").toLowerCase().indexOf(kw) > -1 ||
+             (c.name || "").toLowerCase().indexOf(kw) > -1;
+    });
+    box.innerHTML = list.map(commentRowHTML).join("");
+    var empty = $("#emptyComments");
+    if (empty) {
+      empty.hidden = list.length > 0;
+      empty.textContent = (!list.length && kw) ? "Không tìm thấy bình luận nào khớp."
+                                               : "Chưa có bình luận nào.";
+    }
   }
 
   /* ============================ thẻ cfs ============================ */
@@ -258,6 +305,9 @@
             : '<span class="ad-no">#' + (it.number || "?") + "</span>") +
           '<span class="ad-cat"><span aria-hidden="true">' + c.emoji + "</span> " + esc(c.label) + "</span>" +
           (isPending ? "" : '<span class="ad-when">' + esc(fmtDate(it.date)) + "</span>") +
+          (isPending ? "" :
+            '<span class="ad-react" title="Thương · Không đồng tình · Bình luận">💗 ' +
+              (it.likes || 0) + " · 👎 " + (it.dislikes || 0) + " · 💬 " + (it.comments || 0) + "</span>") +
           '<span class="ad-len" title="Số ký tự">' + it.content.length + " ký tự</span>" +
         "</header>" +
 
@@ -278,7 +328,7 @@
               ? '<button class="btn btn-primary btn-sm" type="button" data-act="approve">Duyệt &amp; đăng</button>' +
                 '<button class="btn btn-ghost btn-sm" type="button" data-act="reject">Từ chối</button>'
               : '<button class="btn btn-primary btn-sm" type="button" data-act="save">Lưu thay đổi</button>' +
-                '<button class="btn btn-ghost btn-sm" type="button" data-act="unapprove">Hạ xuống chờ</button>') +
+                '<button class="btn btn-ghost btn-sm" type="button" data-act="unapprove">Gỡ khỏi bảng tin</button>') +
             '<button class="btn btn-ghost btn-sm danger" type="button" data-act="remove">Xoá hẳn</button>' +
           "</div>" +
         "</footer>" +
@@ -367,7 +417,7 @@
         var msg = {
           approve: "Đã đăng cfs #" + (j.number || data.number),
           save: "Đã lưu thay đổi",
-          unapprove: "Đã hạ xuống chờ duyệt",
+          unapprove: "Đã gỡ khỏi bảng tin (về mục chờ duyệt)",
           reject: "Đã từ chối cfs",
           remove: "Đã xoá hẳn cfs"
         }[act];
@@ -394,11 +444,13 @@
     siteName: "#sName", siteShortName: "#sShort", school: "#sSchool", tagline: "#sTagline",
     fanpage: "#sFanpage", minChars: "#sMin", maxChars: "#sMax",
     maxSubmitsPerWindow: "#sRate", windowMinutes: "#sWindow",
-    maxImages: "#sMaxImg", feedPageSize: "#sPage", pausedMessage: "#sPausedMsg"
+    maxImages: "#sMaxImg", feedPageSize: "#sPage", maxCommentChars: "#sCmtChars",
+    pausedMessage: "#sPausedMsg"
   };
   var SET_SWITCHES = {
     imagesEnabled: "#sImages", adviseFaceCover: "#sAdvise",
-    analyticsEnabled: "#sAnalytics", paused: "#sPaused"
+    analyticsEnabled: "#sAnalytics", commentsEnabled: "#sComments",
+    autoApproveNoImages: "#sAutoApprove", paused: "#sPaused"
   };
 
   function fillSettings(s) {
@@ -614,8 +666,9 @@
         x.classList.toggle("is-active", on);
         x.setAttribute("aria-selected", String(on));
       });
-      ["pending", "approved", "stats", "settings"].forEach(function (t) {
+      ["pending", "approved", "comments", "stats", "settings"].forEach(function (t) {
         var p = $("#panel-" + t);
+        if (!p) return;
         p.hidden = t !== state.tab;
         p.classList.toggle("is-active", t === state.tab);
       });
@@ -643,6 +696,31 @@
       t = setTimeout(function () { state.keyword = v; renderApproved(); }, 160);
     });
 
+    var tc;
+    var cmtSearch = $("#adCmtSearch");
+    if (cmtSearch) cmtSearch.addEventListener("input", function () {
+      var v = this.value.trim();
+      clearTimeout(tc);
+      tc = setTimeout(function () { state.cmtKeyword = v; renderComments(); }, 160);
+    });
+
+    var cmtList = $("#listComments");
+    if (cmtList) cmtList.addEventListener("click", function (e) {
+      var btn = e.target.closest('[data-act="rmCmt"]');
+      if (!btn) return;
+      var card = btn.closest("[data-cmt-id]");
+      if (!card) return;
+      var id = card.dataset.cmtId;
+      if (!confirm("Xoá hẳn bình luận này?")) return;
+      btn.disabled = true;
+      api("removeComment", { id: id }).then(function () {
+        state.comments = state.comments.filter(function (c) { return c.id !== id; });
+        renderComments();
+        renderCounts();
+        toast("Đã xoá bình luận", "ok");
+      }).catch(function (err) { btn.disabled = false; guard(err); });
+    });
+
     bindList($("#listPending"));
     bindList($("#listApproved"));
     initSettings();
@@ -659,10 +737,9 @@
     initShell();
 
     // Vào lại trong cùng tab thì không cần nhập lại token
-    var t = "", u = "";
+    var t = "";
     try { t = sessionStorage.getItem(K_TOKEN) || ""; } catch (e) {}
-    try { u = localStorage.getItem(K_URL) || ""; } catch (e) {}
-    u = u || ((CFG.backend && CFG.backend.appsScript && CFG.backend.appsScript.webAppUrl) || "");
+    var u = backendUrl();
     if (t && u) {
       state.url = u; state.token = t;
       api("session").then(function (j) { enterAdmin(j.info, j.settings); })

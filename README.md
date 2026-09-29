@@ -29,15 +29,19 @@ Cách hoạt động:
 ```
 Người gửi (không đăng nhập)          Admin (đăng nhập)
       │                                    │
-      │  cfs + ảnh (đã xoá EXIF)           │  duyệt / sửa / xoá / đổi cài đặt
+      │  cfs + ảnh (đã xoá EXIF)           │  duyệt / sửa / gỡ / xoá / đổi cài đặt
       ▼                                    ▼
 ┌──────────────────────────────────────────────────┐
 │  Apps Script  —  chạy trong Drive của admin      │
 │  • ảnh  → thư mục Drive (quyền: ai có link xem)  │
-│  • cfs  → Google Sheet (mặc định: chờ duyệt)     │
+│  • cfs  → Google Sheet                           │
+│      – không kèm ảnh  → ĐĂNG NGAY                │
+│      – có kèm ảnh     → chờ admin duyệt          │
+│  • bình luận → Sheet Comments (tên do server đặt)│
+│  • thương / không đồng tình → 2 ô số cộng dồn    │
 │  • đếm  → Sheet Stats (chỉ những ô số cộng dồn)  │
 └──────────────────────────────────────────────────┘
-      │  chỉ cfs ĐÃ DUYỆT
+      │  chỉ cfs ĐÃ ĐĂNG
       ▼
   index.html trên GitHub Pages
 ```
@@ -100,13 +104,15 @@ cfs chỉ lưu trong `localStorage` của máy bạn, dùng để xem giao diệ
 
 Mở `https://<tên-org>.github.io/admin.html` (có link “Quản trị” ở cuối trang chủ).
 
-Đăng nhập bằng:
+Đăng nhập chỉ cần **tên đăng nhập + mật khẩu**:
 
 | | |
 |---|---|
-| Link Apps Script | URL ở bước 2.4 (được ghi nhớ trên máy bạn) |
 | Tên đăng nhập | `admin@datnguyen` |
 | Mật khẩu | mật khẩu mặc định trong `apps-script/Code.gs` |
+
+Không còn ô dán link Apps Script — trang tự lấy link từ `backend.appsScript.webAppUrl` trong
+`assets/js/config.js` (dòng bạn đã điền ở bước 2.5). Chưa điền thì trang nói rõ phải điền vào đâu.
 
 ### ⚠ Đổi mật khẩu ngay lần đầu
 
@@ -122,12 +128,13 @@ Mật khẩu **không được lưu dạng chữ ở bất cứ đâu** — ch�
 Script Properties của Apps Script. Trình duyệt chỉ giữ *session token* trong `sessionStorage`,
 mất khi đóng tab, và tự hết hạn sau 8 giờ. Đổi mật khẩu sẽ thu hồi mọi phiên đang mở.
 
-### Ba tab làm việc
+### Bốn tab làm việc
 
-**Chờ duyệt** — mỗi cfs là một thẻ: xem nội dung, xem ảnh (bấm để phóng to), **bỏ từng ảnh**
-nếu ảnh lộ mặt, sửa nội dung để cắt thông tin nhận dạng, đổi chủ đề, đặt số thứ tự
-rồi **Duyệt & đăng**. Hoặc **Từ chối** (giữ lại trong Sheet để đối chiếu),
-hoặc **Xoá hẳn** (xoá dòng + đưa ảnh vào thùng rác Drive).
+**Chờ duyệt** — ở đây **chỉ còn cfs có kèm ảnh**, vì cfs không ảnh đã tự lên bảng tin (xem mục 4).
+Mỗi cfs là một thẻ: xem nội dung, xem ảnh (bấm để phóng to), **bỏ từng ảnh** nếu ảnh lộ mặt,
+sửa nội dung để cắt thông tin nhận dạng, đổi chủ đề, đặt số thứ tự rồi **Duyệt & đăng**.
+Hoặc **Từ chối** (giữ lại trong Sheet để đối chiếu), hoặc **Xoá hẳn** (xoá dòng + đưa ảnh
+vào thùng rác Drive).
 
 > **Số thứ tự được cấp ngay lúc người gửi bấm gửi**, không phải lúc duyệt — vì trang có
 > hiện số đó cho người gửi ghi nhớ (xem mục dưới). Thẻ chờ duyệt vì vậy mang sẵn số đã cấp
@@ -135,19 +142,73 @@ hoặc **Xoá hẳn** (xoá dòng + đưa ảnh vào thùng rác Drive).
 > thì người gửi tìm không ra cfs của mình — nên chỉ đổi khi thật cần. Cfs bị từ chối sẽ để
 > lại một khoảng trống trong dãy số, chuyện bình thường.
 
-**Đã đăng** — tìm theo nội dung hoặc `#số`, sửa lại, hạ xuống chờ duyệt, hoặc xoá hẳn.
+**Đã đăng** — **toàn bộ** cfs đang hiển thị trên bảng tin, mỗi thẻ kèm `💗 thương · 👎 không
+đồng tình · 💬 bình luận`. Tìm theo nội dung hoặc `#số`, sửa nội dung/chủ đề/số, **Gỡ khỏi
+bảng tin** (cfs về mục chờ duyệt, trang công khai không còn thấy) hoặc **Xoá hẳn**.
+
+**Bình luận** — danh sách bình luận mới nhất kèm `#số` của cfs và tên ngẫu nhiên mà hệ thống
+đã đặt. Tìm theo nội dung/tên/`#số`, và **Xoá** cái nào lệch nội quy. Muốn tắt hẳn tính năng
+bình luận: tab Cài đặt.
 
 **Cài đặt** — sửa xong là trang công khai đổi theo ngay, **không cần mở code**:
 tên trang, tên trường, câu giới thiệu, link fanpage, giới hạn ký tự, số cfs mỗi người
-mỗi khoảng thời gian, số ảnh tối đa, số cfs mỗi trang, bật/tắt tính năng ảnh,
-bật/tắt lời khuyên che mặt, bật/tắt bộ đếm thống kê, và **tạm nghỉ nhận cfs** kèm lời nhắn.
+mỗi khoảng thời gian, số ảnh tối đa, số cfs mỗi trang, độ dài tối đa của bình luận,
+**tự đăng cfs không kèm ảnh**, **cho bình luận**, bật/tắt tính năng ảnh, bật/tắt lời khuyên
+che mặt, bật/tắt bộ đếm thống kê, và **tạm nghỉ nhận cfs** kèm lời nhắn.
 Cuối tab có link trực tiếp tới Sheet và thư mục ảnh trong Drive.
 
 Trang tự đăng xuất sau 30 phút không hoạt động (`admin.idleLogoutMinutes` trong `config.js`).
 
 ---
 
-## 4. Số thứ tự người gửi nhìn thấy
+## 4. Cfs nào tự đăng, cfs nào phải chờ
+
+| Người gửi | Chuyện gì xảy ra |
+|---|---|
+| **Không kèm ảnh** | Lên bảng tin **ngay**, không cần admin. Hộp cảm ơn nói rõ “đã lên bảng tin luôn”. |
+| **Có kèm ảnh** | Vào mục **Chờ duyệt** của admin. Ảnh là chỗ dễ lộ mặt người khác nhất nên luôn cần người xem trước. |
+
+Muốn mọi cfs đều phải duyệt như trước: tab **Cài đặt → tắt “Tự đăng cfs không kèm ảnh”**.
+Admin vẫn **gỡ được bất cứ bài nào** đã đăng ở tab *Đã đăng* — gỡ là trang công khai mất bài
+ngay trong lượt tải kế tiếp.
+
+---
+
+## 5. Thương / Không đồng tình
+
+Mỗi bài trên bảng tin có hai nút kèm số đếm: **Thương** và **Không đồng tình**. Bấm lần nữa là
+bỏ chọn; chọn nút này thì nút kia tự nhả (một người chỉ giữ một lựa chọn cho mỗi cfs).
+
+- Lựa chọn của người xem nằm trong `localStorage` (`cfs-react`) — **không gửi kèm bất cứ thứ
+  gì nhận dạng**.
+- Bên Sheet chỉ có **hai ô số cộng dồn** cho mỗi cfs (cột `likes`, `dislikes`), không có dòng
+  nào ghi ai đã bấm.
+- Mỗi lượt gọi đổi **nhiều nhất 1 đơn vị** mỗi loại và số không bao giờ xuống dưới 0, nên
+  không ai bơm số bằng cách gửi `+999`.
+- Sheet dựng từ bản cũ (9 cột) được **tự thêm 2 cột** này lúc chạy, không cần làm gì thêm.
+
+---
+
+## 6. Bình luận bằng tên ẩn danh
+
+Bấm **Bình luận** trên một bài để mở phần bình luận. Gõ nội dung, bấm gửi (hoặc `Ctrl/⌘ + Enter`).
+
+**Tên hiển thị do server tự random**, kiểu *“Mèo Ngái Ngủ 42”*, *“Cá Heo Bí Ẩn 17”* — người
+bình luận không chọn được tên, và trang **không gửi tên nào lên server**. Trong cùng một cfs,
+hệ thống tránh trùng tên để đọc không lẫn; hai bình luận của cùng một người ở hai lần khác nhau
+sẽ mang tên khác nhau — cố ý như vậy để không ai bị nối lại thành một người.
+
+Bình luận **hiện ngay** (không chờ duyệt), nhưng: tối đa 400 ký tự (admin sửa được), chặn mềm
+10 lần / 10 phút mỗi trình duyệt, chỉ bình luận được cfs **đã đăng**, và admin xoá được bất cứ
+bình luận nào ở tab **Bình luận**. Tắt hẳn: tab Cài đặt → *Cho bình luận trên bảng tin*.
+
+Bình luận nằm ở sheet **Comments** trong cùng Google Sheet: `id`, `createdAt`, `cfsNumber`,
+`name`, `content`, `status`, `displayDate`. Danh sách công khai chỉ trả về `name`, `content`,
+`date` — không kèm id, không kèm giờ chính xác.
+
+---
+
+## 7. Số thứ tự người gửi nhìn thấy
 
 Ngay đầu ô gửi cfs có dải *"Cfs của bạn sẽ mang số **#N**"*, và sau khi gửi xong hộp cảm ơn
 hiện lại đúng số đó to rõ để người gửi ghi nhớ — đó là số cfs sẽ mang khi lên bảng tin, tìm
@@ -162,7 +223,7 @@ bảng tin + 1*; nếu vẫn không đoán được thì dải số tự ẩn, k
 
 ---
 
-## 5. Thống kê người ghé trang
+## 8. Thống kê người ghé trang
 
 Tab **Thống kê** cho biết:
 
@@ -190,7 +251,7 @@ Muốn tắt hẳn: tab Cài đặt → tắt *“Đếm lượt ghé & chủ đ
 
 ---
 
-## 5. Hình ảnh
+## 9. Hình ảnh
 
 Người gửi kèm tối đa 3 ảnh mỗi cfs (chọn file, kéo thả, hoặc Ctrl+V dán trực tiếp).
 
@@ -233,7 +294,7 @@ Free Drive có 15GB — ảnh 1600px nén khoảng 150–300KB, tức cỡ 50.00
 
 ---
 
-## 6. Deploy lên GitHub Pages — với tên miền ẩn danh
+## 10. Deploy lên GitHub Pages — với tên miền ẩn danh
 
 Địa chỉ GitHub Pages **luôn là `https://<chủ-repo>.github.io/…`**. Chủ repo là account cá
 nhân thì tên thật/username của bạn nằm ngay trong URL. Muốn URL ẩn danh thì repo phải thuộc
@@ -280,11 +341,13 @@ Mọi đường dẫn đều **tương đối**, nên site chạy đúng cả kh
 
 ---
 
-## 7. Ẩn danh tới mức nào?
+## 11. Ẩn danh tới mức nào?
 
 **Trang không thu gì về người gửi:** không tài khoản, không email, không analytics của bên
 thứ ba, không pixel, không cookie, không font tải từ server ngoài (dùng font hệ thống).
-`localStorage` chỉ giữ 3 khoá vô hại: `cfs-theme`, `cfs-submit-log` (chống spam), `cfs-liked`.
+`localStorage` chỉ giữ 4 khoá vô hại: `cfs-theme`, `cfs-submit-log` (chống spam),
+`cfs-react` (bạn đã bấm thương/không đồng tình bài nào) và `cfs-comment-log` (chống dội bình luận).
+Không khoá nào được gửi lên server.
 
 **Nhưng nói cho rõ:** GitHub và Google đều có log kỹ thuật riêng của họ. Chủ trang không xem
 được và cũng không xoá hộ được. Vì vậy bảo vệ thật sự đến từ **nội dung bạn viết**:
@@ -295,7 +358,7 @@ thứ ba, không pixel, không cookie, không font tải từ server ngoài (dù
 
 ---
 
-## 8. Nội quy đã cài sẵn trong trang
+## 12. Nội quy đã cài sẵn trong trang
 
 **Điều tiên quyết** (đặt trên cả 6 điều): không vi phạm quyền riêng tư của ai; ảnh có mặt
 người thì nên dán nhãn che mặt trước khi đăng.
@@ -308,7 +371,7 @@ Nội dung nội quy là HTML thuần trong `index.html` (mục `#noi-quy`), s�
 
 ---
 
-## 9. Tuỳ biến giao diện
+## 13. Tuỳ biến giao diện
 
 Đổi màu: sửa `--violet`, `--pink`, `--grad-accent`, `--grad-text` ở đầu `assets/css/style.css`.
 Hai theme nằm trong `[data-theme="dark"]` và `[data-theme="light"]`.
@@ -317,7 +380,7 @@ tương ứng vào `CFG.CATEGORIES` trong `apps-script/Code.gs`.
 
 ---
 
-## 10. Trách nhiệm
+## 14. Trách nhiệm
 
 Trang do sinh viên tự lập, **không thuộc sự quản lí của Trường Đại học Tiền Giang**.
 Người quản trị nên duyệt cfs theo đúng điều tiên quyết và 6 điều nội quy — đặc biệt là cẩn

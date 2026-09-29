@@ -40,6 +40,7 @@
 var CFG = {
   SHEET_INBOX: 'Inbox',
   SHEET_STATS: 'Stats',
+  SHEET_COMMENTS: 'Comments',
 
   PROP_USER: 'ADMIN_USER',
   PROP_SALT: 'ADMIN_SALT',
@@ -67,8 +68,18 @@ var CFG = {
   MAX_IMAGE_BYTES: 6 * 1024 * 1024,   // mỗi ảnh sau khi nén, tính trên bytes thật
   CATEGORIES: ['crush', 'tamsu', 'hoctap', 'gopy', 'vui', 'khac'],
 
+  MIN_COMMENT_CHARS: 2,
+  MAX_COMMENT_CHARS: 400,
+  MAX_COMMENTS_PER_CFS: 500,          // chặn một cfs bị dội bình luận vô hạn
+
   // Cột của sheet Inbox (1-based)
-  COL: { id: 1, submittedAt: 2, category: 3, content: 4, images: 5, status: 6, number: 7, fileIds: 8, displayDate: 9 }
+  COL: {
+    id: 1, submittedAt: 2, category: 3, content: 4, images: 5, status: 6, number: 7,
+    fileIds: 8, displayDate: 9, likes: 10, dislikes: 11
+  },
+
+  // Cột của sheet Comments (1-based)
+  CCOL: { id: 1, createdAt: 2, cfsNumber: 3, name: 4, content: 5, status: 6, displayDate: 7 }
 };
 
 /* Những thứ admin sửa được ngay trên trang quản trị, không cần mở code.
@@ -88,11 +99,18 @@ var DEFAULT_SETTINGS = {
   adviseFaceCover: true,
   analyticsEnabled: true,
   feedPageSize: 9,
+  commentsEnabled: true,
+  maxCommentChars: 400,
+  /* Cfs không kèm ảnh -> lên bảng tin ngay, không cần admin duyệt.
+     Cfs có ảnh thì luôn phải qua admin (vì ảnh có thể lộ mặt người khác). */
+  autoApproveNoImages: true,
   paused: false,
   pausedMessage: 'Page đang tạm nghỉ nhận cfs, bạn quay lại sau nhé 🌷'
 };
 
-var HEADERS = ['id', 'submittedAt', 'category', 'content', 'images', 'status', 'number', 'fileIds', 'displayDate'];
+var HEADERS = ['id', 'submittedAt', 'category', 'content', 'images', 'status', 'number',
+               'fileIds', 'displayDate', 'likes', 'dislikes'];
+var COMMENT_HEADERS = ['id', 'createdAt', 'cfsNumber', 'name', 'content', 'status', 'displayDate'];
 
 /* ============================== SETUP ============================== */
 function setup() {
@@ -115,6 +133,8 @@ function setup() {
     stats.setFrozenRows(1);
     stats.getRange(1, 1, 1, 2).setFontWeight('bold');
   }
+
+  commentsSheet();   // tạo sheet Comments nếu chưa có
 
   var props = PropertiesService.getScriptProperties();
   if (!props.getProperty(CFG.PROP_HASH)) {
@@ -228,6 +248,10 @@ function doPost(e) {
     if (action === 'submit')    return json(submitConfession(body));
     if (action === 'ping')      return json({ ok: true, counted: ping(body) });
     if (action === 'list')      return json({ ok: true, items: listApproved(), nextNumber: nextNumber() });
+    /* bình luận: ai cũng đọc/gửi được, tên do server tự random */
+    if (action === 'comments')  return json({ ok: true, items: listComments(body.number) });
+    if (action === 'comment')   return json(addComment(body));
+    if (action === 'react')     return json(react(body));
     /* một lượt gọi lấy cả cài đặt + danh sách, để trang tải nhanh hơn */
     if (action === 'bootstrap') return json({ ok: true, settings: getSettings(), items: listApproved(), nextNumber: nextNumber() });
 
@@ -236,7 +260,8 @@ function doPost(e) {
 
     /* ---- cần phiên đăng nhập hợp lệ ---- */
     if (['session', 'logout', 'pending', 'approved', 'approve', 'unapprove', 'reject',
-         'update', 'remove', 'stats', 'saveSettings', 'changePassword'].indexOf(action) > -1) {
+         'update', 'remove', 'stats', 'saveSettings', 'changePassword',
+         'adminComments', 'removeComment'].indexOf(action) > -1) {
       if (!checkSession(body.token)) {
         Utilities.sleep(400);
         return json({ ok: false, error: 'Phiên đăng nhập đã hết hạn. Đăng nhập lại nhé.', auth: false });
@@ -251,6 +276,8 @@ function doPost(e) {
       if (action === 'update')         return json(updateRow(body));
       if (action === 'remove')         return json(removeRow(body.id));
       if (action === 'stats')          return json({ ok: true, stats: readStats(body.days || 14) });
+      if (action === 'adminComments')  return json({ ok: true, items: listCommentsForAdmin(body.limit) });
+      if (action === 'removeComment')  return json(removeComment(body.id));
       if (action === 'saveSettings')   return json(saveSettings(body));
       if (action === 'changePassword') return json(changePassword(body));
     }
@@ -418,10 +445,13 @@ function saveSettings(body) {
   s.windowMinutes = num(incoming.windowMinutes, 1, 1440, DEFAULT_SETTINGS.windowMinutes);
   s.maxImages = num(incoming.maxImages, 1, CFG.MAX_IMAGES, DEFAULT_SETTINGS.maxImages);
   s.feedPageSize = num(incoming.feedPageSize, 3, 60, DEFAULT_SETTINGS.feedPageSize);
+  s.maxCommentChars = num(incoming.maxCommentChars, 20, CFG.MAX_COMMENT_CHARS, DEFAULT_SETTINGS.maxCommentChars);
 
   s.imagesEnabled = !!incoming.imagesEnabled;
   s.adviseFaceCover = !!incoming.adviseFaceCover;
   s.analyticsEnabled = !!incoming.analyticsEnabled;
+  s.commentsEnabled = !!incoming.commentsEnabled;
+  s.autoApproveNoImages = !!incoming.autoApproveNoImages;
   s.paused = !!incoming.paused;
   s.pausedMessage = str(incoming.pausedMessage, 200, DEFAULT_SETTINGS.pausedMessage);
 
@@ -454,6 +484,21 @@ function inboxSheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(CFG.SHEET_INBOX);
   if (!sh) throw new Error('Chưa có sheet "' + CFG.SHEET_INBOX + '". Hãy chạy hàm setup() một lần.');
+  return ensureColumns(sh);
+}
+
+/* Sheet dựng từ bản cũ chỉ có 9 cột — thêm cột likes/dislikes cho đủ,
+   để không phải chạy lại setup() hay tạo Sheet mới. */
+function ensureColumns(sh) {
+  var need = HEADERS.length;
+  var have = sh.getMaxColumns();
+  if (have < need) sh.insertColumnsAfter(have, need - have);
+  var head = sh.getRange(1, 1, 1, need).getValues()[0];
+  for (var i = 0; i < need; i++) {
+    if (String(head[i] || '') !== HEADERS[i]) {
+      sh.getRange(1, i + 1).setValue(HEADERS[i]).setFontWeight('bold');
+    }
+  }
   return sh;
 }
 function statsSheet() {
@@ -461,6 +506,157 @@ function statsSheet() {
   var sh = ss.getSheetByName(CFG.SHEET_STATS);
   if (!sh) { sh = ss.insertSheet(CFG.SHEET_STATS); sh.appendRow(['key', 'value']); sh.setFrozenRows(1); }
   return sh;
+}
+
+/* Sheet bình luận — tự tạo nếu chưa có, để bản cũ không cần chạy lại setup() */
+function commentsSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(CFG.SHEET_COMMENTS);
+  if (!sh) {
+    sh = ss.insertSheet(CFG.SHEET_COMMENTS);
+    sh.appendRow(COMMENT_HEADERS);
+    sh.setFrozenRows(1);
+    sh.getRange(1, 1, 1, COMMENT_HEADERS.length).setFontWeight('bold');
+    sh.setColumnWidth(CFG.CCOL.content, 420);
+  }
+  return sh;
+}
+
+function allComments() {
+  var sh = commentsSheet();
+  var n = sh.getLastRow() - 1;
+  if (n <= 0) return [];
+  var vals = sh.getRange(2, 1, n, COMMENT_HEADERS.length).getValues();
+  return vals.map(function (r, i) {
+    return {
+      row: i + 2,
+      id: String(r[CFG.CCOL.id - 1] || ''),
+      createdAt: r[CFG.CCOL.createdAt - 1],
+      cfsNumber: Number(r[CFG.CCOL.cfsNumber - 1] || 0),
+      name: String(r[CFG.CCOL.name - 1] || ''),
+      content: String(r[CFG.CCOL.content - 1] || ''),
+      status: String(r[CFG.CCOL.status - 1] || 'visible'),
+      displayDate: fmtDate(r[CFG.CCOL.displayDate - 1] || r[CFG.CCOL.createdAt - 1])
+    };
+  });
+}
+
+/* Đếm bình luận của từng cfs, để thẻ trên bảng tin hiện sẵn con số */
+function commentCounts() {
+  var out = {};
+  allComments().forEach(function (c) {
+    if (c.status !== 'visible') return;
+    out[c.cfsNumber] = (out[c.cfsNumber] || 0) + 1;
+  });
+  return out;
+}
+
+/* Danh sách công khai của một cfs: KHÔNG kèm id, không kèm giờ chính xác */
+function listComments(number) {
+  var n = Number(number || 0);
+  if (!n) return [];
+  return allComments()
+    .filter(function (c) { return c.cfsNumber === n && c.status === 'visible'; })
+    .map(function (c) { return { name: c.name, content: c.content, date: c.displayDate }; });
+}
+
+/* ------------------------- tên ẩn danh ngẫu nhiên -------------------------
+   Do server sinh, người bình luận không chọn được — nên không ai tự nhận là
+   ai. Không lưu bất cứ thứ gì nhận dạng người gửi. */
+var NICK_ADJ = [
+  'Vô Danh', 'Bí Ẩn', 'Lười Biếng', 'Ngái Ngủ', 'Thầm Lặng', 'Ẩn Mình', 'Hay Cười',
+  'Mít Ướt', 'Tò Mò', 'Vui Tính', 'Đi Ngang', 'Lang Thang', 'Ngơ Ngác', 'Trầm Tính',
+  'Mộng Mơ', 'Bối Rối', 'Giấu Mặt', 'Thức Khuya', 'Dễ Thương', 'Nhút Nhát'
+];
+var NICK_NOUN = [
+  'Mèo', 'Cún', 'Cá Heo', 'Gấu', 'Cú', 'Sóc', 'Thỏ', 'Hươu', 'Panda', 'Cáo',
+  'Chim Sẻ', 'Rùa', 'Sao Biển', 'Nhím', 'Vịt', 'Ong', 'Bướm', 'Hạc', 'Cừu', 'Hổ Con'
+];
+
+function randomNick() {
+  var a = NICK_NOUN[Math.floor(Math.random() * NICK_NOUN.length)];
+  var b = NICK_ADJ[Math.floor(Math.random() * NICK_ADJ.length)];
+  var n = 10 + Math.floor(Math.random() * 90);
+  return a + ' ' + b + ' ' + n;
+}
+
+/* Tránh hai người trong cùng một cfs trùng tên */
+function uniqueNick(taken) {
+  for (var i = 0; i < 12; i++) {
+    var nick = randomNick();
+    if (taken.indexOf(nick) < 0) return nick;
+  }
+  return randomNick() + '-' + Utilities.getUuid().slice(0, 4);
+}
+
+/* ============================ BÌNH LUẬN ============================ */
+function addComment(body) {
+  var S = getSettings();
+  if (!S.commentsEnabled) throw new Error('Bình luận đang tắt.');
+
+  var number = Number(body.number || 0);
+  var content = String(body.content || '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').trim();
+  var maxC = Math.min(S.maxCommentChars || CFG.MAX_COMMENT_CHARS, CFG.MAX_COMMENT_CHARS);
+
+  if (content.length < CFG.MIN_COMMENT_CHARS) throw new Error('Bình luận quá ngắn.');
+  if (content.length > maxC) throw new Error('Bình luận quá dài (tối đa ' + maxC + ' ký tự).');
+
+  /* Chỉ cho bình luận cfs đã đăng */
+  var okCfs = false;
+  allRows().forEach(function (r) { if (r.status === 'approved' && r.number === number) okCfs = true; });
+  if (!okCfs) throw new Error('Không tìm thấy confession số ' + number + ' trên bảng tin.');
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  var saved;
+  try {
+    var mine = allComments().filter(function (c) { return c.cfsNumber === number; });
+    if (mine.length >= CFG.MAX_COMMENTS_PER_CFS) {
+      throw new Error('Cfs này đã quá nhiều bình luận.');
+    }
+    var nick = uniqueNick(mine.map(function (c) { return c.name; }));
+    var now = new Date();
+    var row = [];
+    row[CFG.CCOL.id - 1] = Utilities.getUuid();
+    row[CFG.CCOL.createdAt - 1] = now;
+    row[CFG.CCOL.cfsNumber - 1] = number;
+    row[CFG.CCOL.name - 1] = nick;
+    row[CFG.CCOL.content - 1] = content;
+    row[CFG.CCOL.status - 1] = 'visible';
+    row[CFG.CCOL.displayDate - 1] = fmtDate(now);
+    commentsSheet().appendRow(row);
+    saved = { name: nick, content: content, date: fmtDate(now) };
+  } finally {
+    lock.releaseLock();
+  }
+
+  bump('comment');
+  return { ok: true, comment: saved, count: listComments(number).length };
+}
+
+/* ---- dành cho trang quản trị ---- */
+function listCommentsForAdmin(limit) {
+  var max = Math.max(1, Math.min(Number(limit || 200), 1000));
+  return allComments()
+    .sort(function (a, b) { return String(b.createdAt).localeCompare(String(a.createdAt)); })
+    .slice(0, max)
+    .map(function (c) {
+      return {
+        id: c.id, cfsNumber: c.cfsNumber, name: c.name, content: c.content,
+        status: c.status, createdAt: c.createdAt ? String(c.createdAt) : '', date: c.displayDate
+      };
+    });
+}
+
+function removeComment(id) {
+  var rows = allComments();
+  for (var i = 0; i < rows.length; i++) {
+    if (rows[i].id === String(id)) {
+      commentsSheet().deleteRow(rows[i].row);
+      return { ok: true, removed: 1 };
+    }
+  }
+  throw new Error('Không tìm thấy bình luận cần xoá.');
 }
 
 function allRows() {
@@ -479,7 +675,9 @@ function allRows() {
       status: String(r[CFG.COL.status - 1] || 'pending'),
       number: Number(r[CFG.COL.number - 1] || 0),
       fileIds: String(r[CFG.COL.fileIds - 1] || ''),
-      displayDate: fmtDate(r[CFG.COL.displayDate - 1] || r[CFG.COL.submittedAt - 1])
+      displayDate: fmtDate(r[CFG.COL.displayDate - 1] || r[CFG.COL.submittedAt - 1]),
+      likes: Math.max(0, Number(r[CFG.COL.likes - 1] || 0)),
+      dislikes: Math.max(0, Number(r[CFG.COL.dislikes - 1] || 0))
     };
   });
 }
@@ -504,21 +702,28 @@ function findRow(id) {
 
 /* ---- danh sách công khai: chỉ cfs đã duyệt, KHÔNG kèm id/thời điểm gửi ---- */
 function listApproved() {
+  var counts = commentCounts();
   return allRows()
     .filter(function (r) { return r.status === 'approved'; })
     .map(function (r) {
-      return { number: r.number, date: r.displayDate, category: r.category, content: r.content, images: r.images };
+      return {
+        number: r.number, date: r.displayDate, category: r.category,
+        content: r.content, images: r.images, comments: counts[r.number] || 0,
+        likes: r.likes, dislikes: r.dislikes
+      };
     })
     .sort(function (a, b) { return b.number - a.number; });
 }
 
 function listByStatus(status) {
+  var counts = commentCounts();
   return allRows()
     .filter(function (r) { return r.status === status; })
     .map(function (r) {
       return {
         id: r.id, number: r.number, date: r.displayDate, category: r.category,
         content: r.content, images: r.images, status: r.status,
+        likes: r.likes, dislikes: r.dislikes, comments: counts[r.number] || 0,
         submittedAt: r.submittedAt ? String(r.submittedAt) : ''
       };
     })
@@ -562,6 +767,9 @@ function submitConfession(body) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   var num = 0;
+  /* Không kèm ảnh -> lên bảng tin ngay. Có ảnh -> chờ admin xem đã,
+     vì ảnh là chỗ dễ lộ mặt người khác nhất. */
+  var status = (urls.length === 0 && S.autoApproveNoImages !== false) ? 'approved' : 'pending';
   try {
     var sh = inboxSheet();
     var id = Utilities.getUuid();
@@ -575,17 +783,55 @@ function submitConfession(body) {
     row[CFG.COL.category - 1] = category;
     row[CFG.COL.content - 1] = content;
     row[CFG.COL.images - 1] = urls.join('\n');
-    row[CFG.COL.status - 1] = 'pending';
+    row[CFG.COL.status - 1] = status;
     row[CFG.COL.number - 1] = num;
     row[CFG.COL.fileIds - 1] = ids.join(',');
     row[CFG.COL.displayDate - 1] = fmtDate(now);
+    row[CFG.COL.likes - 1] = 0;
+    row[CFG.COL.dislikes - 1] = 0;
     sh.appendRow(row);
   } finally {
     lock.releaseLock();
   }
 
   bump('submit:' + category);
-  return { ok: true, images: urls, number: num, nextNumber: num + 1 };
+  if (status === 'approved') bump('autoapprove');
+  return { ok: true, images: urls, number: num, nextNumber: num + 1, status: status };
+}
+
+/* ============================ THƯƠNG / KHÔNG ĐỒNG TÌNH ============================
+   Không tài khoản, nên chống gian lận chỉ ở mức vừa đủ: mỗi lượt gọi đổi
+   nhiều nhất 1 đơn vị mỗi loại, và số không bao giờ xuống dưới 0. */
+function react(body) {
+  var number = Number(body.number || 0);
+  var dLike = clampDelta(body.like);
+  var dDislike = clampDelta(body.dislike);
+  if (!dLike && !dDislike) throw new Error('Không có gì để cập nhật.');
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try {
+    var target = null;
+    allRows().forEach(function (r) {
+      if (r.status === 'approved' && r.number === number) target = r;
+    });
+    if (!target) throw new Error('Không tìm thấy confession số ' + number + ' trên bảng tin.');
+
+    var sh = inboxSheet();
+    var likes = Math.max(0, target.likes + dLike);
+    var dislikes = Math.max(0, target.dislikes + dDislike);
+    if (dLike) sh.getRange(target.row, CFG.COL.likes).setValue(likes);
+    if (dDislike) sh.getRange(target.row, CFG.COL.dislikes).setValue(dislikes);
+    return { ok: true, number: number, likes: likes, dislikes: dislikes };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function clampDelta(v) {
+  var n = Number(v);
+  if (isNaN(n) || !n) return 0;
+  return n > 0 ? 1 : -1;
 }
 
 /* Lưu 1 ảnh data URL vào Drive, trả về link xem được công khai */

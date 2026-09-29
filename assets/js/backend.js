@@ -84,6 +84,25 @@
 
   /* =============================== LOCAL =============================== */
   /* Chế độ xem thử: dữ liệu chỉ nằm trong máy người xem, không gửi đi đâu. */
+  /* Tên ẩn danh ngẫu nhiên — chỉ dùng cho chế độ DEMO. Với backend thật,
+     tên do Apps Script sinh ra ở phía server (người gửi không chọn được). */
+  var NICK_NOUN = ["Mèo", "Cún", "Cá Heo", "Gấu", "Cú", "Sóc", "Thỏ", "Hươu", "Panda", "Cáo",
+                   "Chim Sẻ", "Rùa", "Sao Biển", "Nhím", "Vịt", "Ong", "Bướm", "Hạc", "Cừu", "Hổ Con"];
+  var NICK_ADJ = ["Vô Danh", "Bí Ẩn", "Lười Biếng", "Ngái Ngủ", "Thầm Lặng", "Ẩn Mình", "Hay Cười",
+                  "Mít Ướt", "Tò Mò", "Vui Tính", "Đi Ngang", "Lang Thang", "Ngơ Ngác", "Trầm Tính",
+                  "Mộng Mơ", "Bối Rối", "Giấu Mặt", "Thức Khuya", "Dễ Thương", "Nhút Nhát"];
+
+  function randomNick(taken) {
+    taken = taken || [];
+    for (var i = 0; i < 12; i++) {
+      var nick = NICK_NOUN[Math.floor(Math.random() * NICK_NOUN.length)] + " " +
+                 NICK_ADJ[Math.floor(Math.random() * NICK_ADJ.length)] + " " +
+                 (10 + Math.floor(Math.random() * 90));
+      if (taken.indexOf(nick) < 0) return nick;
+    }
+    return "Khách " + Date.now().toString().slice(-5);
+  }
+
   var LocalAdapter = {
     id: "local",
     isDemo: true,
@@ -108,7 +127,12 @@
 
     list: function () {
       var items = this._read().slice().sort(function (a, b) { return b.number - a.number; });
-      items.forEach(function (x) { if (!Array.isArray(x.images)) x.images = []; });
+      items.forEach(function (x) {
+        if (!Array.isArray(x.images)) x.images = [];
+        x.likes = Math.max(0, Number(x.likes) || 0);
+        x.dislikes = Math.max(0, Number(x.dislikes) || 0);
+        x.comments = Math.max(0, Number(x.comments) || 0);
+      });
       return Promise.resolve(items);
     },
 
@@ -118,14 +142,37 @@
         var items = self._read();
         var max = items.reduce(function (m, x) { return Math.max(m, x.number || 0); }, 0);
         var num = max + 1;
+        var imgs = parseImages(data.images);
         items.push({
           number: num, date: todayISO(),
           category: data.category, content: data.content,
-          images: parseImages(data.images)
+          images: imgs, likes: 0, dislikes: 0
         });
         try { localStorage.setItem(self.KEY, JSON.stringify(items)); } catch (e) {}
         // giả lập độ trễ mạng cho mượt
-        setTimeout(function () { resolve({ ok: true, number: num, nextNumber: num + 1 }); }, 700);
+        setTimeout(function () {
+          resolve({
+            ok: true, number: num, nextNumber: num + 1,
+            // không ảnh -> lên bảng tin luôn, có ảnh -> chờ duyệt
+            status: imgs.length ? "pending" : "approved"
+          });
+        }, 700);
+      });
+    },
+
+    /* ---- thương / không đồng tình (chỉ trong máy này) ---- */
+    react: function (number, like, dislike) {
+      var self = this;
+      return new Promise(function (resolve, reject) {
+        var items = self._read();
+        var hit = null;
+        items.forEach(function (x) { if (x.number === Number(number)) hit = x; });
+        if (!hit) return reject(new Error("Không tìm thấy confession số " + number + "."));
+        var d = function (v) { v = Number(v) || 0; return v > 0 ? 1 : (v < 0 ? -1 : 0); };
+        hit.likes = Math.max(0, (Number(hit.likes) || 0) + d(like));
+        hit.dislikes = Math.max(0, (Number(hit.dislikes) || 0) + d(dislike));
+        try { localStorage.setItem(self.KEY, JSON.stringify(items)); } catch (e) {}
+        resolve({ ok: true, number: Number(number), likes: hit.likes, dislikes: hit.dislikes });
       });
     },
 
@@ -133,6 +180,43 @@
     nextNumber: function () {
       var max = this._read().reduce(function (m, x) { return Math.max(m, x.number || 0); }, 0);
       return Promise.resolve(max + 1);
+    },
+
+    /* ---- bình luận (chỉ nằm trong máy này, đúng tinh thần DEMO) ---- */
+    CKEY: "cfs-local-comments",
+
+    _readC: function () {
+      try {
+        var raw = localStorage.getItem(this.CKEY);
+        var o = raw ? JSON.parse(raw) : {};
+        return (o && typeof o === "object") ? o : {};
+      } catch (e) { return {}; }
+    },
+
+    comments: function (number) {
+      var all = this._readC()[String(number)] || [];
+      return Promise.resolve(all.slice());
+    },
+
+    comment: function (number, content) {
+      var self = this;
+      return new Promise(function (resolve, reject) {
+        var items = self._read();
+        var exists = items.some(function (x) { return x.number === Number(number); });
+        if (!exists) return reject(new Error("Không tìm thấy confession số " + number + "."));
+        var store = self._readC();
+        var key = String(number);
+        var list = store[key] || [];
+        var c = {
+          name: randomNick(list.map(function (x) { return x.name; })),
+          content: String(content),
+          date: todayISO()
+        };
+        list.push(c);
+        store[key] = list;
+        try { localStorage.setItem(self.CKEY, JSON.stringify(store)); } catch (e) {}
+        setTimeout(function () { resolve({ ok: true, comment: c, count: list.length }); }, 320);
+      });
     }
   };
 
@@ -412,7 +496,10 @@
         date: normDate(x.date),
         category: String(x.category || "khac"),
         content: String(x.content || ""),
-        images: parseImages(x.images)
+        images: parseImages(x.images),
+        comments: parseInt(x.comments, 10) || 0,
+        likes: Math.max(0, parseInt(x.likes, 10) || 0),
+        dislikes: Math.max(0, parseInt(x.dislikes, 10) || 0)
       };
     }).filter(function (x) { return x.content || x.images.length; })
       .sort(function (a, b) { return b.number - a.number; });
@@ -483,6 +570,28 @@
       });
     },
 
+    /* ---- bình luận: tên ẩn danh do server random ---- */
+    comments: function (number) {
+      return this._call({ action: "comments", number: number }).then(function (j) {
+        return (j.items || []).map(function (c) {
+          return {
+            name: String(c.name || "Ẩn danh"),
+            content: String(c.content || ""),
+            date: normDate(c.date)
+          };
+        });
+      });
+    },
+
+    comment: function (number, content) {
+      return this._call({ action: "comment", number: number, content: content });
+    },
+
+    /* Thương / không đồng tình: mỗi lượt gọi đổi tối đa 1 đơn vị mỗi loại */
+    react: function (number, like, dislike) {
+      return this._call({ action: "react", number: number, like: like || 0, dislike: dislike || 0 });
+    },
+
     /* images là mảng data URL — Apps Script sẽ lưu vào Drive và trả link thật */
     submit: function (data) {
       return this._call({
@@ -525,8 +634,30 @@
     isDemo: !!active.isDemo,
     /* true nếu provider có thể trả về cài đặt do admin đặt trên trang quản trị */
     hasSettings: !!active.bootstrap,
+    /* true nếu provider lưu được bình luận */
+    hasComments: !!(active.comments && active.comment),
+    /* true nếu provider đếm được thương / không đồng tình */
+    hasReactions: !!active.react,
     list: function () { return active.list(); },
     submit: function (data) { return active.submit(data); },
+    /* ---- bình luận ---- */
+    comments: function (number) {
+      if (!active.comments) return Promise.resolve([]);
+      return active.comments(number);
+    },
+    comment: function (number, content) {
+      if (!active.comment) {
+        return Promise.reject(new Error("Provider hiện tại không lưu được bình luận."));
+      }
+      return active.comment(number, content);
+    },
+    /* ---- thương / không đồng tình ---- */
+    react: function (number, like, dislike) {
+      if (!active.react) {
+        return Promise.reject(new Error("Provider hiện tại không đếm được lượt thương."));
+      }
+      return active.react(number, like, dislike);
+    },
     /* Số thứ tự mà cfs gửi lúc này sẽ nhận. Provider không hỗ trợ -> null,
        lúc đó trang tự đoán bằng số lớn nhất trên bảng tin + 1. */
     nextNumber: function () {

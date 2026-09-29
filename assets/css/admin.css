@@ -130,7 +130,32 @@
   color: var(--text-dim); border: 1px dashed var(--border);
   padding: 1px 9px; border-radius: 99px;
 }
+
+/* ------------------------- Bình luận ------------------------- */
+.ad-cmt {
+  display: flex; flex-direction: column; gap: 7px;
+  padding: 13px 15px; border-radius: var(--radius);
+  border: 1px solid var(--border); background: var(--surface);
+}
+.ad-cmt-top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.ad-cmt-no {
+  font-size: .82rem; font-weight: 900; color: var(--text-soft);
+  padding: 1px 9px; border-radius: 99px;
+  border: 1px solid var(--border); background: var(--surface-2);
+  font-variant-numeric: tabular-nums;
+}
+.ad-cmt-name { font-size: .84rem; font-weight: 800; }
+.ad-cmt-top .btn { margin-left: auto; }
+.ad-cmt-text {
+  margin: 0; font-size: .88rem; line-height: 1.55; color: var(--text-soft);
+  white-space: pre-wrap; word-break: break-word;
+}
 .ad-when, .ad-len { font-size: .75rem; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.ad-react {
+  font-size: .75rem; color: var(--text-soft); font-variant-numeric: tabular-nums;
+  padding: 1px 8px; border-radius: 99px;
+  border: 1px solid var(--border); background: var(--surface-2);
+}
 .ad-len { margin-left: auto; }
 
 .ad-text {
