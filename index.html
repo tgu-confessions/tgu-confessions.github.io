@@ -276,19 +276,6 @@
     </header>
 
     <form class="card card-lg cfs-form reveal" id="cfsForm" novalidate data-reveal-delay="80">
-      <div class="cfs-num" id="cfsNumBox" hidden>
-        <span class="cfs-num-ico" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 4 7 20M17 4l-2 16M4.5 9h15M3.5 15h15"/>
-          </svg>
-        </span>
-        <span class="cfs-num-text">
-          Cfs của bạn sẽ mang số
-          <strong class="cfs-num-value" id="cfsNumNext">#—</strong>
-        </span>
-        <span class="cfs-num-note">Ghi nhớ số này để tìm lại cfs của mình trên bảng tin</span>
-      </div>
-
       <div class="form-row">
         <label class="label" for="cfsCategory">Chủ đề</label>
         <div class="chips" id="categoryChips" role="radiogroup" aria-label="Chọn chủ đề"></div>
@@ -299,6 +286,18 @@
         <div class="label-line">
           <label class="label" for="cfsContent">Nội dung confession</label>
           <span class="counter" id="charCounter">0</span>
+        </div>
+        <div class="cfs-num" id="cfsNumBox" hidden>
+          <span class="cfs-num-ico" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 4 7 20M17 4l-2 16M4.5 9h15M3.5 15h15"/>
+            </svg>
+          </span>
+          <span class="cfs-num-text">
+            Cfs của bạn sẽ mang số
+            <strong class="cfs-num-value" id="cfsNumNext">#—</strong>
+          </span>
+          <span class="cfs-num-note">Ghi nhớ số này để tìm lại cfs của mình trên bảng tin</span>
         </div>
         <textarea id="cfsContent" name="content" class="input textarea" rows="9"
                   placeholder="Kể đi... ở đây chỉ có số thứ tự thôi, không ai biết bạn là ai đâu :>>"

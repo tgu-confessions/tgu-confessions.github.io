@@ -573,13 +573,12 @@ button { cursor: pointer; border: 0; background: none; }
 .paused-note::before { content: "🌙"; font-size: 1.2rem; }
 .cfs-form.is-paused .form-row,
 .cfs-form.is-paused .check,
-.cfs-form.is-paused .cfs-num,
 .cfs-form.is-paused .form-foot { opacity: .45; pointer-events: none; }
 
-/* Số thứ tự người gửi sẽ nhận — hiện ngay đầu ô gửi cfs */
+/* Số thứ tự người gửi sẽ nhận — hiện ngay trên ô nhập nội dung */
 .cfs-num {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px;
-  margin-bottom: 20px; padding: 13px 16px;
+  padding: 12px 15px;
   border: 1px solid var(--line); border-radius: var(--radius);
   background: var(--grad-soft);
 }
