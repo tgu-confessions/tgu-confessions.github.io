@@ -220,11 +220,11 @@ một chủ có **tên ẩn danh** — dùng **Organization** (miễn phí, tạ
 email mới):
 
 1. Tạo org: <https://github.com/account/organizations/new?plan=free>
-   - *Organization name*: một tên tiếng Anh ẩn danh, ví dụ `kudoshinichi-1508`
+   - *Organization name*: một tên tiếng Anh ẩn danh, ví dụ `tgu-confessions`
    - *Contact email*: email của bạn (GitHub **không hiển thị** email này công khai)
    - *This organization belongs to*: **My personal account**
 2. Trong org, tạo repo **public** tên **đúng bằng** `<tên-org>.github.io`
-   (ví dụ `kudoshinichi-1508.github.io`) → site sẽ ở ngay gốc, không có thư mục con.
+   (ví dụ `tgu-confessions.github.io`) → site sẽ ở ngay gốc, không có thư mục con.
 3. Push thư mục này lên nhánh `main`:
 
    ```bash
@@ -232,16 +232,16 @@ email mới):
    git add .
    # danh tinh AN DANH, dat rieng cho repo nay
    git config user.name  "Kudo Shinichi"
-   git config user.email "kudoshinichi-1508@users.noreply.github.com"
+   git config user.email "tgu-confessions@users.noreply.github.com"
    git commit -m "init TGU Confessions"
    git branch -M main
-   git remote add origin https://github.com/kudoshinichi-1508/kudoshinichi-1508.github.io.git
+   git remote add origin https://github.com/tgu-confessions/tgu-confessions.github.io.git
    git push -u origin main
    ```
 
 4. **Settings → Pages → Build and deployment → Source = GitHub Actions**.
 5. Workflow `.github/workflows/deploy.yml` chạy ~1 phút, site lên tại
-   `https://kudoshinichi-1508.github.io/`.
+   `https://tgu-confessions.github.io/`.
 
 Mọi đường dẫn đều **tương đối**, nên site chạy đúng cả khi nằm trong thư mục con.
 
