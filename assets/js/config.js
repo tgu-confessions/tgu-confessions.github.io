@@ -71,7 +71,7 @@ window.CFS_CONFIG = {
          https://script.google.com/macros/s/AKfycb..../exec
          Lấy từ: Apps Script -> Deploy -> New deployment -> Web app
                  (Execute as: Me | Who has access: Anyone) */
-      webAppUrl: ""
+      webAppUrl: "https://script.google.com/macros/s/AKfycbzVqs37MWmJnUKUQVd_R8YDyOvCpoCdDMIGvhUC_ztZsAL0SqnhTUGr3lzejMirPdi6-g/exec"
       /* Không có mật khẩu nào nằm ở đây. Token quản trị do admin tự nhập
          trên trang admin.html và được kiểm tra bên trong Apps Script. */
     },
