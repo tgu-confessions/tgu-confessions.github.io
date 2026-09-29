@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Kiểm tra kết nối — TGU Confessions</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; padding: 22px; background: #0b0a14; color: #e7e4f3;
+         font: 15px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 1.3rem; margin: 0 0 6px; }
+  p.sub { margin: 0 0 18px; color: #a9a3c4; font-size: .92rem; }
+  .row { display: flex; gap: 10px; align-items: flex-start; padding: 11px 0;
+         border-bottom: 1px solid rgba(255,255,255,.08); }
+  .row b { flex: 0 0 210px; font-weight: 700; }
+  .row span { flex: 1 1 auto; word-break: break-word; }
+  .ok { color: #5ce1a6; } .bad { color: #ff8095; } .wait { color: #f0c66b; }
+  pre { margin: 14px 0 0; padding: 12px; border-radius: 10px; background: #14122a;
+        border: 1px solid rgba(255,255,255,.1); white-space: pre-wrap; word-break: break-word;
+        font-size: .82rem; color: #cfc9e8; }
+  a { color: #b79dff; }
+  button { margin-top: 16px; padding: 11px 18px; border-radius: 99px; border: 0; cursor: pointer;
+           background: linear-gradient(115deg,#a78bfa,#e879f9); color: #14122a; font-weight: 800; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Kiểm tra kết nối backend</h1>
+  <p class="sub">Trang này không lưu gì, không cần mật khẩu. Nó chỉ thử gọi Apps Script bằng đúng cách
+    mà trang chính đang dùng, rồi in ra kết quả từng bước. Gửi ảnh trang này cho người dựng là đủ để tìm lỗi.</p>
+
+  <div id="rows"></div>
+  <pre id="log">Đang chạy...</pre>
+  <button type="button" onclick="location.href='./kiem-tra.html?nc=' + Date.now()">Chạy lại (bỏ qua cache)</button>
+  <p class="sub" style="margin-top:14px">
+    <a href="./">← Trang confession</a> &nbsp;·&nbsp; <a href="./admin.html">Trang quản trị</a>
+  </p>
+</div>
+
+<script>
+(function () {
+  var rows = document.getElementById("rows");
+  var log = document.getElementById("log");
+  var lines = [];
+
+  function add(label, value, cls) {
+    var d = document.createElement("div");
+    d.className = "row";
+    d.innerHTML = '<b>' + label + '</b><span class="' + (cls || "") + '">' + value + "</span>";
+    rows.appendChild(d);
+    lines.push(label + ": " + String(value).replace(/<[^>]*>/g, ""));
+    log.textContent = lines.join("\n");
+  }
+
+  add("Giờ máy bạn", new Date().toString());
+  add("Địa chỉ trang", location.href);
+
+  /* Tải config.js với tham số chống cache -> biết được bản THẬT trên server */
+  var cfgUrl = "assets/js/config.js?nc=" + Date.now();
+  fetch(cfgUrl, { cache: "no-store" })
+    .then(function (r) { return r.text(); })
+    .then(function (txt) {
+      var m = txt.match(/webAppUrl:\s*"([^"]*)"/);
+      var url = m ? m[1] : "";
+      add("config.js trên server", url ? "có link backend (" + url.slice(0, 52) + "…)" : "CHƯA có link backend", url ? "ok" : "bad");
+
+      /* So với config.js mà trang chính đang thực sự nạp (có thể là bản cache cũ) */
+      var s = document.createElement("script");
+      s.src = "assets/js/config.js";     // không tham số: đúng cái trang chính dùng
+      s.onload = function () {
+        var cached = (((window.CFS_CONFIG || {}).backend || {}).appsScript || {}).webAppUrl || "";
+        add("config.js trình duyệt đang dùng",
+            cached ? "có link backend" : "RỖNG → trình duyệt đang dùng bản CŨ trong cache",
+            cached ? "ok" : "bad");
+        if (!cached && url) {
+          add("Cách sửa", "Bấm Ctrl+Shift+R một lần, hoặc mở lại trang bằng địa chỉ có ?nc=… ", "wait");
+        }
+        if (url) ping(url);
+        else add("Kết luận", "Chưa dán link Apps Script vào assets/js/config.js", "bad");
+      };
+      s.onerror = function () { add("config.js trình duyệt đang dùng", "không tải được", "bad"); };
+      document.head.appendChild(s);
+    })
+    .catch(function (e) {
+      add("Tải config.js", "lỗi: " + (e && e.message), "bad");
+    });
+
+  /* Gọi backend đúng như trang chính: POST text/plain, không cookie, không referrer */
+  function ping(url) {
+    add("Đang gọi backend", url.slice(0, 60) + "…", "wait");
+    var t0 = Date.now();
+    fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      credentials: "omit",
+      referrerPolicy: "no-referrer",
+      redirect: "follow",
+      body: JSON.stringify({ action: "bootstrap" })
+    })
+      .then(function (r) {
+        add("HTTP", r.status + " " + r.statusText + " (" + (Date.now() - t0) + "ms)", r.ok ? "ok" : "bad");
+        return r.text();
+      })
+      .then(function (txt) {
+        var j = null;
+        try { j = JSON.parse(txt); } catch (e) {}
+        if (!j) {
+          add("Phản hồi", "KHÔNG phải JSON — 200 ký tự đầu: " + txt.slice(0, 200), "bad");
+          add("Thường do", "Deploy chưa đặt Who has access = Anyone, hoặc chưa Deploy phiên bản mới", "wait");
+          return;
+        }
+        if (!j.ok) {
+          add("Backend trả lời", "ok = false — " + (j.error || "(không rõ)"), "bad");
+          return;
+        }
+        add("Backend trả lời", "ok = true", "ok");
+        add("Số cfs đang đăng", (j.items || []).length, "ok");
+        add("Số thứ tự kế tiếp", j.nextNumber, "ok");
+        var st = j.settings || {};
+        add("Tự đăng bài không ảnh", String(st.autoApproveNoImages), "ok");
+        add("Cho bình luận", String(st.commentsEnabled), "ok");
+        add("Kết luận", "Backend chạy tốt. Nếu trang quản trị vẫn không vào được thì do sai mật khẩu.", "ok");
+      })
+      .catch(function (e) {
+        add("Gọi backend", "THẤT BẠI: " + (e && e.message), "bad");
+        add("Thường do", "Bị chặn bởi tiện ích mở rộng / chặn quảng cáo, mạng chặn script.google.com, " +
+                         "hoặc deploy không mở cho Anyone", "wait");
+      });
+  }
+})();
+</script>
+</body>
+</html>
