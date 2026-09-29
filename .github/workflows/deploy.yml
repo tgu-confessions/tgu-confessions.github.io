@@ -27,6 +27,19 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      # Gắn ?v=<commit> vào mọi file js/css trong HTML, để trình duyệt không
+      # dùng lại bản cũ trong cache sau khi deploy (nguyên nhân kiểu "đã sửa
+      # rồi mà trang vẫn chạy code cũ").
+      - name: Cache-bust assets
+        run: |
+          V="${GITHUB_SHA::12}"
+          for f in *.html; do
+            [ -f "$f" ] || continue
+            sed -i -E "s#(assets/(js|css)/[a-zA-Z0-9_.-]+\.(js|css))\"#\1?v=$V\"#g" "$f"
+            echo "--- $f ---"
+            grep -oE "assets/(js|css)/[a-zA-Z0-9_.-]+\.(js|css)\?v=[0-9a-f]+" "$f" || true
+          done
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
