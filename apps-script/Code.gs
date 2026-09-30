@@ -112,6 +112,81 @@ var HEADERS = ['id', 'submittedAt', 'category', 'content', 'images', 'status', '
                'fileIds', 'displayDate', 'likes', 'dislikes'];
 var COMMENT_HEADERS = ['id', 'createdAt', 'cfsNumber', 'name', 'content', 'status', 'displayDate'];
 
+/* ============================== TỐI ƯU ==============================
+   1) MEMO: mỗi lượt gọi chỉ đọc Sheet Inbox / Comments / cài đặt ĐÚNG MỘT LẦN,
+      dù nhiều hàm cùng cần (bootstrap trước đây đọc Inbox 3 lần).
+   2) CACHE công khai: kết quả `bootstrap`/`list` được giữ trong CacheService
+      (bộ nhớ đệm của Google, không phải Sheet) tối đa PUB_TTL giây. Mọi thao tác
+      ghi (gửi cfs, thương, bình luận, duyệt, sửa, xoá, đổi cài đặt) xoá cache
+      ngay, nên người xem không bao giờ thấy dữ liệu cũ do chính trang tạo ra.
+      Chỉ khi admin sửa TAY trong Sheet thì phải chờ tối đa PUB_TTL giây.
+   ==================================================================== */
+var MEMO = {};
+function memo(key, fn) {
+  if (!(key in MEMO)) MEMO[key] = fn();
+  return MEMO[key];
+}
+function forget() {
+  // giữ lại handle của sheet (không đổi trong một lượt gọi), chỉ bỏ dữ liệu đã đọc
+  var keep = {};
+  ['inboxSheet', 'commentsSheet', 'statsSheet'].forEach(function (k) { if (k in MEMO) keep[k] = MEMO[k]; });
+  MEMO = keep;
+}
+
+var PUB_KEY = 'pub:v2';
+var PUB_TTL = 120;              // giây
+var CHUNK = 90000;              // CacheService giới hạn 100KB mỗi khoá
+
+function publicPayload() {
+  var cache = CacheService.getScriptCache();
+  try {
+    var head = cache.get(PUB_KEY);
+    if (head) {
+      var n = Number(head), keys = [];
+      for (var i = 0; i < n; i++) keys.push(PUB_KEY + ':' + i);
+      var parts = cache.getAll(keys), txt = '';
+      for (var j = 0; j < n; j++) {
+        if (parts[keys[j]] == null) { txt = null; break; }
+        txt += parts[keys[j]];
+      }
+      if (txt) return JSON.parse(txt);
+    }
+  } catch (e) { /* cache hỏng -> đọc lại từ Sheet */ }
+
+  var data = { settings: getSettings(), items: listApproved(), nextNumber: nextNumber() };
+  try {
+    var s = JSON.stringify(data), put = {}, count = Math.ceil(s.length / CHUNK);
+    if (count <= 50) {
+      for (var k = 0; k < count; k++) put[PUB_KEY + ':' + k] = s.slice(k * CHUNK, (k + 1) * CHUNK);
+      put[PUB_KEY] = String(count);
+      cache.putAll(put, PUB_TTL);
+    }
+  } catch (e) { /* không cache được cũng không sao */ }
+  return data;
+}
+
+/* Gọi sau MỌI thao tác ghi */
+function invalidate() {
+  forget();
+  try { CacheService.getScriptCache().remove(PUB_KEY); } catch (e) {}
+}
+
+/* Chặn "formula injection": nội dung người dùng bắt đầu bằng = + - @ sẽ bị
+   Google Sheet hiểu là công thức (vd. =IMPORTXML(...)). Thêm dấu ' ở đầu để Sheet
+   lưu dạng chữ; dấu ' không nằm trong giá trị đọc ra. */
+function safeCell(v) {
+  var s = String(v == null ? '' : v);
+  return /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
+}
+
+/* Giới hạn độ dài lấy từ cài đặt admin (trước đây approve/update dùng giá trị
+   mặc định trong CFG nên bỏ qua cài đặt đã lưu). */
+function checkLength(c) {
+  var S = getSettings();
+  if (c.length < (S.minChars || CFG.MIN_CHARS)) throw new Error('Nội dung quá ngắn.');
+  if (c.length > (S.maxChars || CFG.MAX_CHARS)) throw new Error('Nội dung quá dài.');
+}
+
 /* ============================== SETUP ============================== */
 function setup() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -225,8 +300,8 @@ function doGet(e) {
       'Version: New version → Deploy.</p></div>');
   }
   try {
-    if (action === 'list') return json({ ok: true, items: listApproved() });
-    if (action === 'bootstrap') return json({ ok: true, settings: getSettings(), items: listApproved() });
+    if (action === 'list') return json({ ok: true, items: publicPayload().items });
+    if (action === 'bootstrap') { var pg = publicPayload(); return json({ ok: true, settings: pg.settings, items: pg.items, nextNumber: pg.nextNumber }); }
     if (action === 'ping') return json({ ok: true, counted: ping(e.parameter) });
     return json({ ok: false, error: 'Hành động không hợp lệ: ' + action });
   } catch (err) {
@@ -242,18 +317,21 @@ function doPost(e) {
     return json({ ok: false, error: 'Dữ liệu gửi lên không phải JSON hợp lệ.' });
   }
 
-  var action = body.action || '';
+  var action = String(body.action || '');
+  /* Thao tác làm đổi dữ liệu công khai -> xoá cache sau khi chạy (kể cả khi lỗi giữa chừng) */
+  var WRITES = { submit: 1, comment: 1, react: 1, approve: 1, unapprove: 1, reject: 1,
+                 update: 1, remove: 1, saveSettings: 1, removeComment: 1 };
   try {
     /* ---- công khai ---- */
     if (action === 'submit')    return json(submitConfession(body));
     if (action === 'ping')      return json({ ok: true, counted: ping(body) });
-    if (action === 'list')      return json({ ok: true, items: listApproved(), nextNumber: nextNumber() });
+    if (action === 'list')      { var pl = publicPayload(); return json({ ok: true, items: pl.items, nextNumber: pl.nextNumber }); }
     /* bình luận: ai cũng đọc/gửi được, tên do server tự random */
     if (action === 'comments')  return json({ ok: true, items: listComments(body.number) });
     if (action === 'comment')   return json(addComment(body));
     if (action === 'react')     return json(react(body));
     /* một lượt gọi lấy cả cài đặt + danh sách, để trang tải nhanh hơn */
-    if (action === 'bootstrap') return json({ ok: true, settings: getSettings(), items: listApproved(), nextNumber: nextNumber() });
+    if (action === 'bootstrap') { var pb = publicPayload(); return json({ ok: true, settings: pb.settings, items: pb.items, nextNumber: pb.nextNumber }); }
 
     /* ---- đăng nhập bằng tên + mật khẩu ---- */
     if (action === 'login') { ensureAdminAccount(); return json(login(body)); }
@@ -286,6 +364,8 @@ function doPost(e) {
     var out = { ok: false, error: String(err && err.message || err) };
     if (err && err.auth) out.auth = true;
     return json(out);
+  } finally {
+    if (WRITES[action]) invalidate();
   }
 }
 
@@ -381,33 +461,36 @@ function endSession(token) {
   return { ok: true };
 }
 
-function adminInfo() {
-  var sh = inboxSheet();
-  var rows = sh.getLastRow() - 1;
+function statusCounts() {
   var counts = { pending: 0, approved: 0, rejected: 0 };
-  if (rows > 0) {
-    sh.getRange(2, CFG.COL.status, rows, 1).getValues().forEach(function (r) {
-      var s = String(r[0] || 'pending');
-      if (counts[s] != null) counts[s]++;
-    });
-  }
+  allRows().forEach(function (r) { if (counts[r.status] != null) counts[r.status]++; });
+  return counts;
+}
+
+function adminInfo() {
+  var rows = allRows();
+  var counts = statusCounts();
   var props = PropertiesService.getScriptProperties();
   var folder = getFolder();
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
   return {
     user: props.getProperty(CFG.PROP_USER) || '',
     usingDefaultPassword: props.getProperty(CFG.PROP_DEFAULT) === '1',
     counts: counts,
-    total: rows,
+    total: rows.length,
     folder: folder.getName(),
     folderUrl: 'https://drive.google.com/drive/folders/' + folder.getId(),
-    sheet: SpreadsheetApp.getActiveSpreadsheet().getName(),
-    sheetUrl: SpreadsheetApp.getActiveSpreadsheet().getUrl(),
+    sheet: ss.getName(),
+    sheetUrl: ss.getUrl(),
     nextNumber: nextNumber()
   };
 }
 
 /* ============================== CÀI ĐẶT ============================== */
 function getSettings() {
+  return memo('settings', readSettings);
+}
+function readSettings() {
   var raw = PropertiesService.getScriptProperties().getProperty(CFG.PROP_SETTINGS);
   var saved = {};
   try { saved = raw ? JSON.parse(raw) : {}; } catch (e) { saved = {}; }
@@ -460,6 +543,7 @@ function saveSettings(body) {
   CFG.MAX_CHARS = s.maxChars;
 
   PropertiesService.getScriptProperties().setProperty(CFG.PROP_SETTINGS, JSON.stringify(s));
+  forget();
   return { ok: true, settings: s };
 }
 
@@ -481,6 +565,9 @@ function changePassword(body) {
 
 /* ============================== SHEETS ============================== */
 function inboxSheet() {
+  return memo('inboxSheet', openInbox);
+}
+function openInbox() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   if (!ss) {
     throw new Error('Script này phải được tạo từ trong một Google Sheet ' +
@@ -521,14 +608,19 @@ function ensureColumns(sh) {
   return sh;
 }
 function statsSheet() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
-  var sh = ss.getSheetByName(CFG.SHEET_STATS);
-  if (!sh) { sh = ss.insertSheet(CFG.SHEET_STATS); sh.appendRow(['key', 'value']); sh.setFrozenRows(1); }
-  return sh;
+  return memo('statsSheet', function () {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sh = ss.getSheetByName(CFG.SHEET_STATS);
+    if (!sh) { sh = ss.insertSheet(CFG.SHEET_STATS); sh.appendRow(['key', 'value']); sh.setFrozenRows(1); }
+    return sh;
+  });
 }
 
 /* Sheet bình luận — tự tạo nếu chưa có, để bản cũ không cần chạy lại setup() */
 function commentsSheet() {
+  return memo('commentsSheet', openComments);
+}
+function openComments() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(CFG.SHEET_COMMENTS);
   if (!sh) {
@@ -542,6 +634,9 @@ function commentsSheet() {
 }
 
 function allComments() {
+  return memo('comments', readAllComments);
+}
+function readAllComments() {
   var sh = commentsSheet();
   var n = sh.getLastRow() - 1;
   if (n <= 0) return [];
@@ -627,8 +722,9 @@ function addComment(body) {
 
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
-  var saved;
+  var saved, count = 0;
   try {
+    forget();   // đọc lại sau khi đã giữ khoá, tránh đếm thiếu bình luận vừa gửi song song
     var mine = allComments().filter(function (c) { return c.cfsNumber === number; });
     if (mine.length >= CFG.MAX_COMMENTS_PER_CFS) {
       throw new Error('Cfs này đã quá nhiều bình luận.');
@@ -640,17 +736,18 @@ function addComment(body) {
     row[CFG.CCOL.createdAt - 1] = now;
     row[CFG.CCOL.cfsNumber - 1] = number;
     row[CFG.CCOL.name - 1] = nick;
-    row[CFG.CCOL.content - 1] = content;
+    row[CFG.CCOL.content - 1] = safeCell(content);
     row[CFG.CCOL.status - 1] = 'visible';
     row[CFG.CCOL.displayDate - 1] = fmtDate(now);
     commentsSheet().appendRow(row);
     saved = { name: nick, content: content, date: fmtDate(now) };
+    count = mine.length + 1;
   } finally {
     lock.releaseLock();
   }
 
   bump('comment');
-  return { ok: true, comment: saved, count: listComments(number).length };
+  return { ok: true, comment: saved, count: count };
 }
 
 /* ---- dành cho trang quản trị ---- */
@@ -668,17 +765,22 @@ function listCommentsForAdmin(limit) {
 }
 
 function removeComment(id) {
-  var rows = allComments();
-  for (var i = 0; i < rows.length; i++) {
-    if (rows[i].id === String(id)) {
-      commentsSheet().deleteRow(rows[i].row);
-      return { ok: true, removed: 1 };
+  return withLock(function () {
+    var rows = allComments();
+    for (var i = 0; i < rows.length; i++) {
+      if (rows[i].id === String(id)) {
+        commentsSheet().deleteRow(rows[i].row);
+        return { ok: true, removed: 1 };
+      }
     }
-  }
-  throw new Error('Không tìm thấy bình luận cần xoá.');
+    throw new Error('Không tìm thấy bình luận cần xoá.');
+  });
 }
 
 function allRows() {
+  return memo('rows', readAllRows);
+}
+function readAllRows() {
   var sh = inboxSheet();
   var n = sh.getLastRow() - 1;
   if (n <= 0) return [];
@@ -795,12 +897,13 @@ function submitConfession(body) {
     var now = new Date();
     /* Cấp số ngay lúc gửi, để người gửi biết cfs của mình là số mấy.
        Admin vẫn sửa được số này ở bước duyệt. */
+    forget();   // đọc lại Inbox sau khi giữ khoá -> hai người gửi cùng lúc không trùng số
     num = nextNumber();
     var row = [];
     row[CFG.COL.id - 1] = id;
     row[CFG.COL.submittedAt - 1] = now;
     row[CFG.COL.category - 1] = category;
-    row[CFG.COL.content - 1] = content;
+    row[CFG.COL.content - 1] = safeCell(content);
     row[CFG.COL.images - 1] = urls.join('\n');
     row[CFG.COL.status - 1] = status;
     row[CFG.COL.number - 1] = num;
@@ -830,6 +933,7 @@ function react(body) {
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
+    forget();   // số đếm mới nhất sau khi đã giữ khoá
     var target = null;
     allRows().forEach(function (r) {
       if (r.status === 'approved' && r.number === number) target = r;
@@ -896,17 +1000,17 @@ function getFolder() {
 
 /* ============================== DUYỆT CFS ============================== */
 function approve(body) {
-  var r = findRow(body.id);
-  var sh = inboxSheet();
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
   try {
+    forget();
+    var r = findRow(body.id);
+    var sh = inboxSheet();
     var num = Number(body.number || 0) || (r.number || nextNumber());
     if (body.content != null) {
       var c = String(body.content).trim();
-      if (c.length < CFG.MIN_CHARS) throw new Error('Nội dung quá ngắn.');
-      if (c.length > CFG.MAX_CHARS) throw new Error('Nội dung quá dài.');
-      sh.getRange(r.row, CFG.COL.content).setValue(c);
+      checkLength(c);
+      sh.getRange(r.row, CFG.COL.content).setValue(safeCell(c));
     }
     if (body.category && CFG.CATEGORIES.indexOf(body.category) > -1) {
       sh.getRange(r.row, CFG.COL.category).setValue(body.category);
@@ -918,50 +1022,64 @@ function approve(body) {
     sh.getRange(r.row, CFG.COL.number).setValue(num);
     sh.getRange(r.row, CFG.COL.status).setValue('approved');
     if (!r.displayDate) sh.getRange(r.row, CFG.COL.displayDate).setValue(fmtDate(new Date()));
+    forget();
     return { ok: true, number: num, nextNumber: nextNumber() };
   } finally {
     lock.releaseLock();
   }
 }
 
+/* Mọi thao tác sửa/xoá theo số dòng đều giữ khoá: tránh xoá nhầm dòng khi
+   có người gửi cfs mới đúng lúc đó. */
+function withLock(fn) {
+  var lock = LockService.getScriptLock();
+  lock.waitLock(20000);
+  try { forget(); return fn(); } finally { lock.releaseLock(); }
+}
+
 function setStatus(id, status) {
-  var r = findRow(id);
-  inboxSheet().getRange(r.row, CFG.COL.status).setValue(status);
-  return { ok: true, status: status };
+  return withLock(function () {
+    var r = findRow(id);
+    inboxSheet().getRange(r.row, CFG.COL.status).setValue(status);
+    return { ok: true, status: status };
+  });
 }
 
 function updateRow(body) {
-  var r = findRow(body.id);
-  var sh = inboxSheet();
-  if (body.content != null) {
-    var c = String(body.content).trim();
-    if (c.length < CFG.MIN_CHARS) throw new Error('Nội dung quá ngắn.');
-    if (c.length > CFG.MAX_CHARS) throw new Error('Nội dung quá dài.');
-    sh.getRange(r.row, CFG.COL.content).setValue(c);
-  }
-  if (body.category && CFG.CATEGORIES.indexOf(body.category) > -1) {
-    sh.getRange(r.row, CFG.COL.category).setValue(body.category);
-  }
-  if (body.number != null && Number(body.number) > 0) {
-    sh.getRange(r.row, CFG.COL.number).setValue(Number(body.number));
-  }
-  if (Array.isArray(body.images)) {
-    sh.getRange(r.row, CFG.COL.images).setValue(body.images.join('\n'));
-  }
-  return { ok: true };
+  return withLock(function () {
+    var r = findRow(body.id);
+    var sh = inboxSheet();
+    if (body.content != null) {
+      var c = String(body.content).trim();
+      checkLength(c);
+      sh.getRange(r.row, CFG.COL.content).setValue(safeCell(c));
+    }
+    if (body.category && CFG.CATEGORIES.indexOf(body.category) > -1) {
+      sh.getRange(r.row, CFG.COL.category).setValue(body.category);
+    }
+    if (body.number != null && Number(body.number) > 0) {
+      sh.getRange(r.row, CFG.COL.number).setValue(Number(body.number));
+    }
+    if (Array.isArray(body.images)) {
+      sh.getRange(r.row, CFG.COL.images).setValue(body.images.join('\n'));
+    }
+    return { ok: true };
+  });
 }
 
 /* Xoá hẳn: bỏ dòng khỏi Sheet và chuyển ảnh vào thùng rác Drive */
 function removeRow(id) {
-  var r = findRow(id);
-  if (r.fileIds) {
-    r.fileIds.split(',').forEach(function (fid) {
-      if (!fid) return;
-      try { DriveApp.getFileById(fid).setTrashed(true); } catch (e) {}
-    });
-  }
-  inboxSheet().deleteRow(r.row);
-  return { ok: true };
+  return withLock(function () {
+    var r = findRow(id);
+    if (r.fileIds) {
+      r.fileIds.split(',').forEach(function (fid) {
+        if (!fid) return;
+        try { DriveApp.getFileById(fid).setTrashed(true); } catch (e) {}
+      });
+    }
+    inboxSheet().deleteRow(r.row);
+    return { ok: true };
+  });
 }
 
 /* ============================== THỐNG KÊ ============================== */
@@ -979,14 +1097,12 @@ function bump(key, by) {
   if (!lock.tryLock(8000)) return;   // thống kê không quan trọng bằng cfs, mất 1 lượt cũng được
   try {
     var sh = statsSheet();
-    var n = sh.getLastRow() - 1;
-    var keys = n > 0 ? sh.getRange(2, 1, n, 1).getValues() : [];
-    for (var i = 0; i < keys.length; i++) {
-      if (String(keys[i][0]) === key) {
-        var cell = sh.getRange(i + 2, 2);
-        cell.setValue(Number(cell.getValue() || 0) + (by || 1));
-        return;
-      }
+    /* TextFinder tìm trên server của Google, nhanh hơn nhiều so với tải cả cột về */
+    var hit = sh.getRange('A:A').createTextFinder(key).matchEntireCell(true).matchCase(true).findNext();
+    if (hit && hit.getRow() > 1) {
+      var cell = sh.getRange(hit.getRow(), 2);
+      cell.setValue(Number(cell.getValue() || 0) + (by || 1));
+      return;
     }
     sh.appendRow([key, by || 1]);
   } finally {
@@ -1031,6 +1147,6 @@ function readStats(days) {
     submits: submits,
     publishedByCat: publishedByCat,
     pendingByCat: pendingByCat,
-    counts: adminInfo().counts
+    counts: statusCounts()
   };
 }

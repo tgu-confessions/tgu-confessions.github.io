@@ -98,6 +98,19 @@ cfs chỉ lưu trong `localStorage` của máy bạn, dùng để xem giao diệ
 > **Mỗi lần sửa `Code.gs`** phải: Deploy → Manage deployments → ✏️ Edit →
 > Version: **New version** → Deploy. Không làm bước này thì bản cũ vẫn đang chạy.
 
+### Cập nhật bằng lệnh (clasp) — không cần copy/paste
+
+Máy này đã cài `@google/clasp@3.4.1` và đăng nhập sẵn. `apps-script/.clasp.json` trỏ tới
+đúng project Apps Script đang chạy. Sửa `Code.gs` xong, chạy trong thư mục `apps-script`:
+
+```bash
+clasp push --force
+clasp deploy --deploymentId AKfycbzVqs37MWmJnUKUQVd_R8YDyOvCpoCdDMIGvhUC_ztZsAL0SqnhTUGr3lzejMirPdi6-g
+```
+
+Deploy đè lên **cùng một deployment** nên link `/exec` trong `config.js` giữ nguyên.
+`push` sẽ thay toàn bộ file trên Apps Script bằng `Code.gs` + `appsscript.json` trong repo.
+
 ---
 
 ## 3. Trang quản trị `admin.html`
